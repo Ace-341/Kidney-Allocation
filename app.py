@@ -881,7 +881,7 @@ def train_rulefit(decisions_json, params):
     Returns (rulefit, rules_df, stats, feat_names, error_msg)
     """
     try:
-        import sklearn.ensemble._gradient_boosting  # triggers py3.12 error early
+        
         from imodels import RuleFitClassifier
     except (ImportError, AttributeError):
         return None, None, None, None, (
