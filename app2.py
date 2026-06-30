@@ -42,6 +42,11 @@ warnings.filterwarnings("ignore")
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _groq_explain(prompt, fallback_text):
+    """
+    Call Groq API for a natural language explanation.
+    Falls back to fallback_text if API is unavailable or key is missing.
+    Responses are cached in st.session_state to avoid repeated API calls.
+    """
     cache_key = f"groq_{hash(prompt)}"
     if cache_key in st.session_state:
         return st.session_state[cache_key]
@@ -52,25 +57,20 @@ def _groq_explain(prompt, fallback_text):
 
     try:
         from groq import Groq
-        import time                                          # ADD THIS
-
         client = Groq(api_key=api_key)
-
-        start = time.time()                                  # ADD THIS
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=200,
             temperature=0.3,
         )
-        latency = (time.time() - start) * 1000               # ADD THIS
-        print(f"Groq latency: {latency:.0f}ms")              # ADD THIS
-
         result = response.choices[0].message.content.strip()
         st.session_state[cache_key] = result
         return result
     except Exception:
         return fallback_text
+
+
 def _build_patient_context(d, params):
     """Build plain-English patient description for LLM prompt."""
     lines = []
@@ -215,61 +215,8 @@ Focus on the most important factor. No technical jargon. No mention of "rules" o
     return exp_i, exp_j
 
 
-def explain_rule_llm(rule_str, coef, support, params, fallback_text):
-    """
-    Generate a plain-English explanation of a single RuleFit rule
-    for a medical-ethics / non-technical audience.
 
-    Covers:
-    - What patient profile triggers the rule
-    - Why it might represent a coherent allocation preference
-    - Fallback to a structured text version if the API is unavailable
-    """
-    pref     = "A" if coef > 0 else "B"
-    opp      = "B" if coef > 0 else "A"
-    strength = (
-        "very strongly" if abs(coef) > 1.5 else
-        "strongly"      if abs(coef) > 1.0 else
-        "moderately"    if abs(coef) > 0.4 else
-        "weakly"
-    )
-
-    # Feature-name glossary injected into the prompt so the LLM can translate
-    # the raw feature strings without hallucinating their meaning.
-    glossary = """Feature name glossary (use this to interpret the rule):
-- "X difference (%)" is positive when Patient A scores higher than B on X, negative when B is higher.
-- "Life years difference (%)" is positive when Patient A is YOUNGER (more remaining life years).
-- "X similarity (%)" is high (near 100) when A and B are close in value on X.
-- "X higher patient" = the larger of the two patients' values on X.
-- "X lower patient"  = the smaller of the two patients' values on X.
-- "Expected treatment benefit difference (%)" = (health_score × remaining_life_years)_A  minus the same for B.
-- "Social responsibility difference (%)" = (dependents × remaining_life_years)_A  minus B.
-- "Vulnerability index difference (%)" = (urgency_score × years_waiting)_A  minus B."""
-
-    prompt = f"""You are explaining a single decision pattern from a medical resource-allocation model \
-to a doctor or medical ethicist. The model was trained on human pairwise judgements about who \
-should receive an organ transplant.
-
-{glossary}
-
-Pattern to explain:
-  Condition : {rule_str}
-  Conclusion: when this condition is true, the model {strength} prefers Patient {pref} over Patient {opp}.
-  Frequency : applies to {support:.0%} of the training decisions.
-
-Write exactly 2 sentences:
-  Sentence 1 — What kind of patient pair triggers this pattern (describe the clinical/ethical situation in concrete terms — ages, urgency, waiting time, etc.).
-  Sentence 2 — Why this preference might reflect a coherent allocation principle (e.g. fairness, medical utility, vulnerability, social responsibility).
-
-Rules:
-- No technical jargon: do not say "coefficient", "feature", "model", "rule", "weight", "training", "positive value", or "negative value".
-- Mention specific clinical factors by name (e.g. "younger patient", "longer wait", "higher urgency").
-- Write in the third person, as a knowledgeable colleague explaining their reasoning."""
-
-    return _groq_explain(prompt, fallback_text)
-
-
-
+# ── Config ────────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Preference Elicitation", page_icon="🫘", layout="wide"
 )
@@ -791,144 +738,6 @@ def check_consistency(decisions, params, threshold=0.85):
                     "decision_j": decisions[j],
                 })
     return conflicts
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# TRAINING DATA CONFIGURATION (EXMOS-style)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def compute_param_data(decisions, params):
-    """
-    Compute min, max, and full value list for each parameter
-    across all answered decisions (both Patient A and B values combined).
-    Used to set slider bounds in the configuration panel.
-    """
-    data = {}
-    for p in params:
-        a_vals = [float(d.get(f"A_{p}", 0)) for d in decisions]
-        b_vals = [float(d.get(f"B_{p}", 0)) for d in decisions]
-        all_vals = a_vals + b_vals
-        if not all_vals:
-            data[p] = {"min": 0.0, "max": 1.0, "values": []}
-            continue
-        data[p] = {
-            "min":    float(min(all_vals)),
-            "max":    float(max(all_vals)),
-            "values": all_vals,
-        }
-    return data
-
-
-def filter_decisions_by_config(decisions, params, config):
-    """
-    Return only decisions where BOTH Patient A and Patient B values
-    fall within the configured [lo, hi] range for every enabled parameter.
-    Parameters whose checkbox is unchecked bypass the range check entirely.
-    """
-    filtered = []
-    for d in decisions:
-        keep = True
-        for p in params:
-            if not config.get(f"{p}_enabled", True):
-                continue          # parameter filter is disabled — skip
-            lo = config.get(f"{p}_lo", -1e18)
-            hi = config.get(f"{p}_hi",  1e18)
-            av = float(d.get(f"A_{p}", 0))
-            bv = float(d.get(f"B_{p}", 0))
-            if not (lo <= av <= hi) or not (lo <= bv <= hi):
-                keep = False
-                break
-        if keep:
-            filtered.append(d)
-    return filtered
-
-
-def chart_param_histogram(values, lo, hi):
-    """
-    Small matplotlib histogram for a single parameter in the
-    Configure Training Data panel.
-
-    - Bars for the full distribution; in-range bars coloured with the
-      theme accent, out-of-range bars dimmed.
-    - Shaded span over the selected [lo, hi] window.
-    - Dashed vertical lines at the lo / hi boundaries when they do not
-      coincide with the data edges.
-    - Compact x-axis tick labels so the reader can see the data range.
-    Returns a matplotlib Figure, or None if values are constant / empty.
-    """
-    if not values:
-        return None
-    mn, mx = float(min(values)), float(max(values))
-    if mx == mn:
-        return None
-
-    T       = get_theme()
-    accent  = T["ACCENT"]
-    dim     = T["TEXT_DIM"]
-    text    = T["TEXT"]
-    border  = T["BORDER"]
-    bg      = T["CARD_BG"]
-
-    theme_rcparams()
-    n_bins = min(14, max(6, len(set(round(v, 1) for v in values))))
-    counts, edges = np.histogram(values, bins=n_bins, range=(mn, mx))
-    bar_w = (edges[1] - edges[0]) * 0.80   # 80 % width → thin gap between bars
-
-    fig, ax = plt.subplots(figsize=(3.4, 1.55))
-    fig.patch.set_facecolor(bg)
-    ax.set_facecolor(bg)
-
-    for i in range(len(counts)):
-        left  = edges[i]
-        right = edges[i + 1]
-        mid   = (left + right) / 2
-        c     = counts[i]
-        # A bar is "in range" if any part of its bucket overlaps [lo, hi]
-        in_range = right >= lo and left <= hi
-        ax.bar(
-            mid, c, width=bar_w,
-            color=accent if in_range else dim,
-            alpha=0.85   if in_range else 0.28,
-            linewidth=0, zorder=2,
-        )
-
-    # Shaded selection window
-    shade_lo = max(lo, mn)
-    shade_hi = min(hi, mx)
-    if shade_lo < shade_hi:
-        ax.axvspan(shade_lo, shade_hi,
-                   color=accent, alpha=0.10, zorder=1)
-
-    # Boundary dashed lines (only if not at data edge)
-    eps = (mx - mn) * 0.01
-    if lo > mn + eps:
-        ax.axvline(lo, color=accent, linewidth=1.4,
-                   linestyle="--", alpha=0.75, zorder=3)
-    if hi < mx - eps:
-        ax.axvline(hi, color=accent, linewidth=1.4,
-                   linestyle="--", alpha=0.75, zorder=3)
-
-    # x-axis: show only min, lo, hi, max as ticks
-    tick_vals = sorted({mn, lo, hi, mx})
-    ax.set_xticks(tick_vals)
-    ax.set_xticklabels(
-        [f"{v:.0f}" for v in tick_vals],
-        fontsize=6.5, color=dim,
-    )
-    ax.tick_params(axis="x", length=2, pad=2)
-
-    ax.set_xlim(mn - (mx - mn) * 0.04,
-                mx + (mx - mn) * 0.04)
-    ax.set_ylim(0, max(counts) * 1.35 if max(counts) > 0 else 1)
-    ax.set_yticks([])
-    for spine in ax.spines.values():
-        spine.set_visible(False)
-    ax.spines["bottom"].set_visible(True)
-    ax.spines["bottom"].set_color(border)
-    ax.spines["bottom"].set_linewidth(0.8)
-
-    plt.tight_layout(pad=0.25)
-    return fig
-
 
 # ── Feature name lookup for LLM prompts ──────────────────────────────────────
 HIGHER_MEANS = {
@@ -1833,194 +1642,6 @@ elif st.session_state.page == "model":
             st.rerun()
         st.stop()
 
-    # ── Training Data Configuration Panel (EXMOS-style) ─────────────────────
-    _all_decisions = decisions   # keep the full answered set for display tabs
-
-    if "training_config" not in st.session_state:
-        st.session_state["training_config"] = {}
-
-    BG_cfg, BG2_cfg, BG3_cfg, BORDER_cfg, TEXT_cfg, TEXT_DIM_cfg, \
-        TEXT_MUTED_cfg, A_WIN_cfg, B_WIN_cfg, COL_A_cfg, COL_B_cfg, ACCENT_cfg \
-        = _setup_colours()
-    T_cfg = get_theme()  # used for card wrapper HTML colours
-
-    with st.expander("⚙️ Configure Training Data", expanded=False):
-        st.caption(
-            "Set a value range for each parameter to filter which of your answered "
-            "decisions are used to train the model.  "
-            "Decisions where **either** patient falls outside a range are excluded.  "
-            "Uncheck a parameter to remove its filter entirely.  "
-            "Click **💾 Save & Re-train** to apply."
-        )
-
-        _pdata   = compute_param_data(_all_decisions, params)
-        _pending = {}
-
-        # ── Parameter grid — 2 cards per row ─────────────────────────────────
-        _plist    = list(params)
-        _row_size = 2
-        _grid     = [_plist[i:i + _row_size]
-                     for i in range(0, len(_plist), _row_size)]
-
-        for _row in _grid:
-            _cols = st.columns(_row_size)
-            for _col, _p in zip(_cols, _row):
-                with _col:
-                    _pn   = _p.replace("_", " ").title()
-                    _pd   = _pdata[_p]
-                    _lo_d = _pd["min"]
-                    _hi_d = _pd["max"]
-
-                    # Card wrapper
-                    st.markdown(
-                        f"<div style='border:1px solid {T_cfg['CARD_BORDER']};"
-                        f"border-radius:10px;padding:12px 14px 10px;"
-                        f"background:{T_cfg['CARD_BG']};margin-bottom:6px'>",
-                        unsafe_allow_html=True,
-                    )
-
-                    # Checkbox — enable/disable this parameter's range filter
-                    _enabled = st.checkbox(
-                        f"**{_pn}**",
-                        value=st.session_state["training_config"].get(
-                            f"{_p}_enabled", True
-                        ),
-                        key=f"cfg_en_{_p}",
-                        help="Uncheck to include all values for this parameter",
-                    )
-                    _pending[f"{_p}_enabled"] = _enabled
-
-                    if _enabled and _lo_d < _hi_d:
-                        # Restore previous range or default to full range
-                        _cur_lo = float(
-                            st.session_state["training_config"].get(f"{_p}_lo", _lo_d)
-                        )
-                        _cur_hi = float(
-                            st.session_state["training_config"].get(f"{_p}_hi", _hi_d)
-                        )
-                        _cur_lo = max(_cur_lo, _lo_d)
-                        _cur_hi = min(_cur_hi, _hi_d)
-
-                        # Step: integer step for small integer-like ranges
-                        _rng  = _hi_d - _lo_d
-                        _step = 1.0 if _rng <= 100 else round(_rng / 100, 1)
-
-                        _sel = st.slider(
-                            f"{_pn} range",
-                            min_value=float(_lo_d),
-                            max_value=float(_hi_d),
-                            value=(float(_cur_lo), float(_cur_hi)),
-                            step=float(_step),
-                            key=f"cfg_sl_{_p}",
-                            label_visibility="collapsed",
-                        )
-                        _pending[f"{_p}_lo"] = _sel[0]
-                        _pending[f"{_p}_hi"] = _sel[1]
-
-                        # Histogram chart showing distribution + selected range
-                        _fig = chart_param_histogram(_pd["values"], _sel[0], _sel[1])
-                        if _fig is not None:
-                            st.pyplot(_fig, use_container_width=True)
-                            plt.close(_fig)
-
-                        # Value range + coverage caption
-                        _in  = sum(
-                            1 for v in _pd["values"]
-                            if _sel[0] <= v <= _sel[1]
-                        )
-                        _tot = len(_pd["values"])
-                        _pct = _in / _tot * 100 if _tot else 0
-                        st.caption(
-                            f"{_sel[0]:.1f} – {_sel[1]:.1f}  "
-                            f"· {_in}/{_tot} values ({_pct:.0f}%)"
-                        )
-
-                    else:
-                        # Filter disabled or constant parameter
-                        _pending[f"{_p}_lo"] = _lo_d
-                        _pending[f"{_p}_hi"] = _hi_d
-                        if _lo_d == _hi_d:
-                            st.caption(f"Constant value: {_lo_d:.1f}")
-                        else:
-                            # Show full-range histogram (no selection lines)
-                            _fig = chart_param_histogram(_pd["values"], _lo_d, _hi_d)
-                            if _fig is not None:
-                                st.pyplot(_fig, use_container_width=True)
-                                plt.close(_fig)
-                            st.caption(
-                                f"No filter  "
-                                f"· {_lo_d:.1f} – {_hi_d:.1f}"
-                            )
-
-                    st.markdown("</div>", unsafe_allow_html=True)
-
-        # ── Live preview count ────────────────────────────────────────────────
-        _preview = filter_decisions_by_config(_all_decisions, params, _pending)
-        _n_prev  = len(_preview)
-        _n_all   = len(_all_decisions)
-
-        st.divider()
-        _ci, _cr, _cs = st.columns([3, 1, 1])
-        with _ci:
-            if _n_prev == _n_all:
-                st.success(
-                    f"✅ **{_n_prev}** decisions selected — all decisions included."
-                )
-            elif _n_prev >= 6:
-                st.info(
-                    f"🔍 **{_n_prev}** of **{_n_all}** decisions match "
-                    f"({_n_prev / _n_all * 100:.0f}%) — ready to train."
-                )
-            else:
-                st.warning(
-                    f"⚠️ Only **{_n_prev}** decisions match — "
-                    "need ≥ 6 to train. Widen the ranges."
-                )
-        with _cr:
-            if st.button(
-                "↺ Reset", key="cfg_reset",
-                help="Reset all filters to full data range",
-                use_container_width=True,
-            ):
-                st.session_state["training_config"] = {}
-                train_rulefit.clear()
-                st.rerun()
-        with _cs:
-            _save_disabled = _n_prev < 6
-            if st.button(
-                "💾 Save & Re-train",
-                type="primary",
-                key="cfg_save",
-                disabled=_save_disabled,
-                use_container_width=True,
-                help="Apply filters and retrain the model" if not _save_disabled
-                     else "Need at least 6 matching decisions",
-            ):
-                st.session_state["training_config"] = dict(_pending)
-                train_rulefit.clear()
-                st.rerun()
-
-    # ── Apply saved config to select training decisions ───────────────────────
-    _cfg = st.session_state.get("training_config", {})
-    if _cfg:
-        _train_ds = filter_decisions_by_config(_all_decisions, params, _cfg)
-        if len(_train_ds) >= 6:
-            decisions = _train_ds
-            if len(decisions) < len(_all_decisions):
-                st.info(
-                    f"🔍 Training on **{len(decisions)}** filtered decisions "
-                    f"({len(decisions)}/{len(_all_decisions)}).  "
-                    "Open ⚙️ Configure Training Data to adjust."
-                )
-        else:
-            st.warning(
-                f"Saved filters match only {len(_train_ds)} decisions (need ≥ 6). "
-                "Using all decisions for training. Adjust or reset in ⚙️ Configure Training Data."
-            )
-            decisions = _all_decisions
-    else:
-        decisions = _all_decisions
-
     # Train RuleFit
     decisions_json = json.dumps(decisions)
     with st.spinner("Training model…"):
@@ -2038,7 +1659,7 @@ elif st.session_state.page == "model":
                   help="% of predictions that correctly flip when A and B are swapped")
     st.divider()
 
-    tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs(["📄 Model Card", "📋 Rules", "📊 Charts", "🎯 Predict New Pair", "🔍 Examples", "🧠 Analysis"])
+    tab0, tab2, tab3, tab4, tab5 = st.tabs(["📄 Model Card", "📊 Charts", "🎯 Predict New Pair", "🔍 Examples", "🧠 Analysis"])
 
 
     # ── Tab 0: Model Card ─────────────────────────────────────────────────────
@@ -2135,141 +1756,6 @@ padding:16px;text-align:center'>
 - RuleFit may suppress weak but genuine preferences via regularisation
 - With <20 scenarios some parameter interactions may not be captured
 """)
-
-    # ── Tab 1: Rules (with per-rule LLM explanations) ─────────────────────────
-    with tab1:
-        st.markdown("### 📋 Learned Rules")
-        if rf_error or rules_df is None or len(rules_df) == 0:
-            st.warning(
-                "No rules available. RuleFit requires Python 3.9–3.11 "
-                "and at least 6 answered decisions."
-            )
-        else:
-            BG_r,BG2_r,BG3_r,BORDER_r,TEXT_r,TEXT_DIM_r,TEXT_MUTED_r, \
-                A_WIN_r,B_WIN_r,COL_A_r,COL_B_r,ACCENT_r = _setup_colours()
-            T_r = get_theme()
-
-            st.caption(
-                f"The model distilled your {rf_stats['n_decisions']} decisions into "
-                f"**{len(rules_df)} IF-THEN rules**. "
-                "Each card shows the raw condition, how often it fires, how strongly it "
-                "pushes toward a patient, and a plain-English explanation of what it means."
-            )
-
-            has_groq = bool(os.environ.get("GROQ_API_KEY", ""))
-            if not has_groq:
-                st.info(
-                    "💡 Add a `GROQ_API_KEY` to your `.env` file to get LLM explanations. "
-                    "Without it, the rule-based fallback text is shown instead."
-                )
-
-            for i, (_, row) in enumerate(rules_df.iterrows()):
-                pref       = "A" if row["coef"] > 0 else "B"
-                opp        = "B" if row["coef"] > 0 else "A"
-                card_color = COL_A_r if pref == "A" else COL_B_r
-                imp        = abs(row["coef"])
-
-                # Strength label + colour
-                if imp > 1.5:
-                    strength_lbl = "Very Strong";  strength_col = "#16a34a"
-                elif imp > 1.0:
-                    strength_lbl = "Strong";       strength_col = "#22c55e"
-                elif imp > 0.4:
-                    strength_lbl = "Moderate";     strength_col = "#f59e0b"
-                else:
-                    strength_lbl = "Weak";         strength_col = "#94a3b8"
-
-                # Coverage tier
-                sup = row["support"]
-                if sup >= 0.60:
-                    cov_lbl = "Broad";   cov_col = ACCENT_r
-                elif sup >= 0.30:
-                    cov_lbl = "Common";  cov_col = TEXT_DIM_r
-                else:
-                    cov_lbl = "Narrow";  cov_col = TEXT_MUTED_r
-
-                # Rule-based fallback
-                conf_word = (
-                    "strongly"   if imp > 1.0 else
-                    "moderately" if imp > 0.4 else
-                    "weakly"
-                )
-                fallback = (
-                    f"When {row['rule']}, prefer Patient {pref} "
-                    f"({conf_word}, covers {sup:.0%} of decisions). "
-                    f"This pattern {conf_word} suggests {pref} should be prioritised "
-                    f"in scenarios matching these conditions."
-                )
-
-                # Call LLM (cached by prompt hash)
-                with st.spinner(f"Explaining rule {i + 1} of {len(rules_df)}…"):
-                    explanation = explain_rule_llm(
-                        row["rule"], row["coef"], row["support"], params, fallback
-                    )
-
-                # ── Rule card ─────────────────────────────────────────────────
-                st.markdown(
-                    f"<div style='"
-                    f"border:1px solid {T_r['CARD_BORDER']};"
-                    f"border-left:4px solid {card_color};"
-                    f"border-radius:8px;"
-                    f"padding:16px 18px 14px;"
-                    f"margin-bottom:14px;"
-                    f"background:{T_r['CARD_BG']}'>"
-
-                    # ── Header row ────────────────────────────────────────────
-                    f"<div style='display:flex;justify-content:space-between;"
-                    f"align-items:center;margin-bottom:10px'>"
-
-                    f"<span style='font-size:14px;font-weight:700;"
-                    f"color:{card_color}'>Rule {i + 1} &nbsp;→&nbsp; "
-                    f"Prefer Patient {pref}</span>"
-
-                    f"<span style='display:flex;gap:6px;flex-shrink:0'>"
-                    f"<span style='font-size:11px;padding:2px 9px;"
-                    f"border-radius:12px;font-weight:600;"
-                    f"background:{T_r['BG3']};color:{strength_col}'>"
-                    f"{strength_lbl}</span>"
-                    f"<span style='font-size:11px;padding:2px 9px;"
-                    f"border-radius:12px;"
-                    f"background:{T_r['BG3']};color:{cov_col}'>"
-                    f"{cov_lbl} · {sup:.0%}</span>"
-                    f"</span>"
-
-                    f"</div>"  # end header row
-
-                    # ── Raw rule block ────────────────────────────────────────
-                    f"<div style='font-family:monospace;font-size:11.5px;"
-                    f"color:{T_r['TEXT_DIM']};"
-                    f"background:{T_r['BG3']};"
-                    f"padding:8px 12px;border-radius:6px;"
-                    f"margin-bottom:12px;"
-                    f"white-space:pre-wrap;word-break:break-word'>"
-                    f"IF &nbsp; {row['rule']}<br>"
-                    f"THEN prefer Patient {pref}</div>"
-
-                    # ── LLM explanation ───────────────────────────────────────
-                    f"<div style='font-size:13.5px;line-height:1.65;"
-                    f"color:{T_r['TEXT']}'>{explanation}</div>"
-
-                    # ── Footer: coefficient bar ───────────────────────────────
-                    f"<div style='margin-top:10px;display:flex;"
-                    f"align-items:center;gap:8px'>"
-                    f"<span style='font-size:11px;color:{T_r['TEXT_MUTED']}'>"
-                    f"Strength</span>"
-                    f"<div style='flex:1;height:4px;"
-                    f"background:{T_r['BG3']};border-radius:2px'>"
-                    f"<div style='width:{min(100, int(imp / 2.0 * 100))}%;"
-                    f"height:4px;background:{card_color};"
-                    f"border-radius:2px'></div>"
-                    f"</div>"
-                    f"<span style='font-size:11px;color:{T_r['TEXT_MUTED']}'>"
-                    f"{imp:.3f}</span>"
-                    f"</div>"  # end footer
-
-                    f"</div>",  # end card
-                    unsafe_allow_html=True,
-                )
 
     # ── Tab 2: Charts ─────────────────────────────────────────────────────────
     with tab2:
@@ -2954,7 +2440,7 @@ padding:16px;text-align:center'>
                             )
 
                 st.markdown(
-                    "**Note:** Inconsistencies are not necessarily errors — "
-                    "they may reflect context-sensitive reasoning that simple rules "
+                    "**Note:** Inconsistencies are not necessarily errors. "
+                    "They may reflect context-sensitive reasoning that simple rules "
                     "cannot capture. However, resolving clear misclicks improves the model."
                 )
