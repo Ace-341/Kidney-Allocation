@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+
+/* ── Reset & base ────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #fff;
+  color: #0f172a;
+  padding: 4px 0 24px;
+}
+
+/* ── Tree container ──────────────────────────────────────── */
+.fft-tree { max-width: 680px; }
+
+/* ── Step row ────────────────────────────────────────────── */
+.fft-step-row {
+  display: flex;
+  align-items: flex-start;
+  border-radius: 12px;
+  transition: opacity 0.15s;
+}
+
+/* Drag states */
+.fft-step-row.is-dragging { opacity: 0.38; }
+
+.fft-step-row.drop-above .fft-node-box {
+  border-top: 2.5px solid #2563eb;
+}
+.fft-step-row.drop-below .fft-node-box {
+  border-bottom: 2.5px solid #2563eb;
+}
+
+/* ── Drag handle (editing only) ──────────────────────────── */
+.fft-drag-handle {
+  flex-shrink: 0;
+  width: 26px;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 22px;
+  color: #cbd5e1;
+  font-size: 18px;
+  line-height: 1;
+  user-select: none;
+  cursor: grab;
+  transition: color 0.12s;
+}
+.fft-drag-handle:hover { color: #64748b; }
+.fft-drag-handle:active { cursor: grabbing; }
+
+/* ── Left column ─────────────────────────────────────────── */
+.fft-left-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Node box ────────────────────────────────────────────── */
+.fft-node-box {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 18px 22px;
+  background: #fff;
+  transition: border-color 0.12s;
+}
+
+.fft-step-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  user-select: none;
+}
+
+/* Read-only content */
+.fft-feature-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 6px;
+  line-height: 1.25;
+}
+
+.fft-rule-text {
+  font-size: 15px;
+  font-family: ui-monospace, 'SF Mono', monospace;
+  color: #475569;
+}
+
+/* ── NO ↓ connector ──────────────────────────────────────── */
+.fft-connector {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding-left: 28px;
+  gap: 12px;
+}
+
+.fft-connector-line {
+  width: 1px;
+  height: 100%;
+  background: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.fft-connector-label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+/* ── Right column ────────────────────────────────────────── */
+.fft-right-col {
+  flex-shrink: 0;
+  width: 192px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding-top: 32px;
+  padding-left: 8px;
+}
+
+.fft-yes-connector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.fft-yes-line {
+  width: 40px;
+  height: 1px;
+  background: #cbd5e1;
+  flex-shrink: 0;
+}
+
+.fft-yes-label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* ── Outcome pills ───────────────────────────────────────── */
+.fft-outcome {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 18px;
+  border-radius: 6px;
+  border: 1.5px solid;
+  font-size: 14px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.fft-outcome-a { color: #b91c1c; border-color: #b91c1c; background: #fff5f5; }
+.fft-outcome-b { color: #1d4ed8; border-color: #1d4ed8; background: #eff6ff; }
+
+/* ── Default box ─────────────────────────────────────────── */
+.fft-default-box {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 18px 22px;
+  background: #f8fafc;
+}
+
+.fft-default-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  user-select: none;
+}
+
+/* ── Edit controls ───────────────────────────────────────── */
+.fft-edit-feature {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  border-bottom: 1.5px solid #e2e8f0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  color: #0f172a;
+  outline: none;
+  padding: 4px 2px 4px 0;
+  width: 100%;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+.fft-edit-feature:focus { border-bottom-color: #2563eb; }
+
+.fft-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fft-edit-op {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  border-bottom: 1.5px solid #e2e8f0;
+  background: transparent;
+  font-family: ui-monospace, monospace;
+  font-size: 16px;
+  color: #0f172a;
+  outline: none;
+  padding: 4px 2px;
+  width: 40px;
+  text-align: center;
+  cursor: pointer;
+}
+.fft-edit-op:focus { border-bottom-color: #2563eb; }
+
+.fft-edit-thr {
+  border: none;
+  border-bottom: 1.5px solid #e2e8f0;
+  background: transparent;
+  font-family: ui-monospace, monospace;
+  font-size: 16px;
+  color: #0f172a;
+  outline: none;
+  padding: 4px 2px;
+  width: 80px;
+}
+.fft-edit-thr:focus { border-bottom-color: #2563eb; }
+.fft-edit-thr::-webkit-outer-spin-button,
+.fft-edit-thr::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+/* Re-enable text selection inside interactive controls
+   (overrides the row-level user-select:none set in JS for drag) */
+.fft-edit-feature, .fft-edit-op, .fft-edit-thr {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: auto;
+}
+
+/* ── Outcome toggle buttons ──────────────────────────────── */
+.fft-toggle-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.fft-toggle {
+  padding: 7px 14px;
+  border-radius: 5px;
+  border: 1.5px solid;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  font-family: inherit;
+  line-height: 1;
+  transition: background 0.12s, color 0.12s;
+}
+
+.fft-toggle-a         { color: #b91c1c; border-color: #b91c1c; }
+.fft-toggle-a.fft-on  { background: #b91c1c; color: #fff; }
+.fft-toggle-b         { color: #1d4ed8; border-color: #1d4ed8; }
+.fft-toggle-b.fft-on  { background: #1d4ed8; color: #fff; }
+
+/* ── Apply button ────────────────────────────────────────── */
+.fft-apply-btn {
+  margin-top: 28px;
+  width: 100%;
+  padding: 14px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+  transition: background 0.12s;
+}
+.fft-apply-btn:hover { background: #1d4ed8; }
+.fft-apply-btn.fft-saved { background: #16a34a; }
+
+/* ── Drag hint (editing mode only) ──────────────────────── */
+.fft-drag-hint {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 16px;
+  padding-left: 28px;
+  user-select: none;
+}
+
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+'use strict';
+
+/* ── State ─────────────────────────────────────────────────── */
+var tree    = null;
+var editing = false;
+var params  = [];
+
+/* drag-and-drop state */
+var dragIndex     = null;
+var dragOverIndex = null;
+
+/* ── Helpers ───────────────────────────────────────────────── */
+
+function prettyFeature(name) {
+  var base = name.replace(/_diff$/, '').replace(/_/g, ' ');
+  return base.charAt(0).toUpperCase() + base.slice(1) + ' (A − B)';
+}
+
+function el(tag, props) {
+  var node = document.createElement(tag);
+  if (!props) return node;
+  Object.keys(props).forEach(function(k) {
+    if (k === 'cls')         node.className   = props[k];
+    else if (k === 'text')   node.textContent = props[k];
+    else if (k === 'style')  node.style.cssText = props[k];
+    else                     node.setAttribute(k, props[k]);
+  });
+  return node;
+}
+
+function append(parent) {
+  var children = Array.prototype.slice.call(arguments, 1);
+  children.forEach(function(c) { if (c) parent.appendChild(c); });
+  return parent;
+}
+
+/* ── Outcome pill ───────────────────────────────────────────── */
+function outcomePill(exitClass) {
+  return el('div', {
+    cls:  'fft-outcome ' + (exitClass === 1 ? 'fft-outcome-a' : 'fft-outcome-b'),
+    text: exitClass === 1 ? 'Prefer A' : 'Prefer B',
+  });
+}
+
+/* ── Toggle (editing) ───────────────────────────────────────── */
+function outcomeToggle(exitClass, onChange) {
+  var btnA = el('button', { cls: 'fft-toggle fft-toggle-a' + (exitClass === 1 ? ' fft-on' : ''), text: '→ A' });
+  var btnB = el('button', { cls: 'fft-toggle fft-toggle-b' + (exitClass === 0 ? ' fft-on' : ''), text: '→ B' });
+  function setActive(v) {
+    btnA.className = 'fft-toggle fft-toggle-a' + (v === 1 ? ' fft-on' : '');
+    btnB.className = 'fft-toggle fft-toggle-b' + (v === 0 ? ' fft-on' : '');
+    onChange(v);
+  }
+  btnA.addEventListener('click', function() { setActive(1); });
+  btnB.addEventListener('click', function() { setActive(0); });
+  return append(el('div', { cls: 'fft-toggle-row' }), btnA, btnB);
+}
+
+/* ── Drag-and-drop handlers ─────────────────────────────────── */
+
+function clearDragClasses() {
+  document.querySelectorAll('.fft-step-row').forEach(function(r) {
+    r.classList.remove('is-dragging', 'drop-above', 'drop-below');
+  });
+}
+
+function onDragStart(e, i) {
+  dragIndex = i;
+  e.dataTransfer.effectAllowed = 'move';
+  /* Store index so drop can read it cross-browser */
+  try { e.dataTransfer.setData('text/plain', String(i)); } catch (_) {}
+  /* Delay opacity so the browser captures the ghost BEFORE we fade the row */
+  setTimeout(function() {
+    var rows = document.querySelectorAll('.fft-step-row');
+    if (rows[i]) rows[i].classList.add('is-dragging');
+  }, 0);
+}
+
+function onDragOver(e, i) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  if (dragIndex === null || dragIndex === i) return;
+  if (dragOverIndex === i) return;
+  dragOverIndex = i;
+  clearDragClasses();
+  var rows = document.querySelectorAll('.fft-step-row');
+  if (rows[dragIndex]) rows[dragIndex].classList.add('is-dragging');
+  if (rows[i]) {
+    /* drop-above = dragged item will land above this row */
+    rows[i].classList.add(dragIndex > i ? 'drop-above' : 'drop-below');
+  }
+}
+
+function onDrop(e, i) {
+  e.preventDefault();
+  e.stopPropagation();
+  clearDragClasses();
+  if (dragIndex === null || dragIndex === i) { dragIndex = null; return; }
+  /* reorder tree.nodes: move dragIndex to i */
+  var nodes  = tree.nodes;
+  var moved  = nodes.splice(dragIndex, 1)[0];
+  nodes.splice(i, 0, moved);
+  dragIndex     = null;
+  dragOverIndex = null;
+  render();
+}
+
+function onDragEnd() {
+  clearDragClasses();
+  dragIndex     = null;
+  dragOverIndex = null;
+}
+
+/* ── Build one step row ──────────────────────────────────────── */
+
+function buildStepRow(node, i) {
+  var row = el('div', { cls: 'fft-step-row' });
+
+  /* ── drag handle (editing only) ── */
+  if (editing) {
+    /* Always-on draggable — no mousedown trick needed.
+       Inputs/selects absorb their own clicks so they still work normally;
+       the drag only fires when the user clicks-and-moves a non-interactive area. */
+    row.setAttribute('draggable', 'true');
+    /* Prevent text-selection fighting with drag start */
+    row.style.userSelect        = 'none';
+    row.style.webkitUserSelect  = 'none';
+
+    row.addEventListener('dragstart', function(e) { onDragStart(e, i); });
+    row.addEventListener('dragover',  function(e) { onDragOver(e, i); });
+    row.addEventListener('drop',      function(e) { onDrop(e, i); });
+    row.addEventListener('dragend',   function()  { onDragEnd(); });
+
+    var handle = el('div', { cls: 'fft-drag-handle', text: '⠿' });
+    append(row, handle);
+  }
+
+  /* ── left column: box + connector ── */
+  var leftCol  = el('div', { cls: 'fft-left-col' });
+  var box      = el('div', { cls: 'fft-node-box' });
+  var stepLbl  = el('div', { cls: 'fft-step-label', text: 'STEP ' + (i + 1) });
+  append(box, stepLbl);
+
+  if (editing) {
+    /* Feature dropdown */
+    var featureSel = document.createElement('select');
+    featureSel.className = 'fft-edit-feature';
+    params.forEach(function(p) {
+      var opt  = document.createElement('option');
+      opt.value       = p + '_diff';
+      opt.textContent = prettyFeature(p + '_diff');
+      if (opt.value === node.feature) opt.selected = true;
+      featureSel.appendChild(opt);
+    });
+    featureSel.addEventListener('change', function(e) {
+      tree.nodes[i].feature = e.target.value;
+    });
+    box.appendChild(featureSel);
+
+    /* Operator + threshold */
+    var opSel = document.createElement('select');
+    opSel.className = 'fft-edit-op';
+    [['>=', '≥'], ['<=', '≤']].forEach(function(pair) {
+      var opt = document.createElement('option');
+      opt.value = pair[0]; opt.textContent = pair[1];
+      if (pair[0] === node.op) opt.selected = true;
+      opSel.appendChild(opt);
+    });
+    opSel.addEventListener('change', function(e) {
+      tree.nodes[i].op = e.target.value;
+    });
+
+    var thrInput = document.createElement('input');
+    thrInput.className = 'fft-edit-thr';
+    thrInput.type  = 'number';
+    thrInput.value = node.threshold;
+    thrInput.step  = '0.5';
+    thrInput.addEventListener('input', function(e) {
+      var v = parseFloat(e.target.value);
+      if (!isNaN(v)) tree.nodes[i].threshold = v;
+    });
+
+    append(box, append(el('div', { cls: 'fft-edit-row' }), opSel, thrInput));
+  } else {
+    var op = node.op === '>=' ? '≥' : '≤';
+    append(box,
+      el('div', { cls: 'fft-feature-name', text: prettyFeature(node.feature) }),
+      el('div', { cls: 'fft-rule-text',    text: op + ' ' + node.threshold.toFixed(2) })
+    );
+  }
+
+  /* NO ↓ connector */
+  var connector = append(
+    el('div', { cls: 'fft-connector' }),
+    el('div', { cls: 'fft-connector-line' }),
+    el('span', { cls: 'fft-connector-label', text: 'NO ↓' })
+  );
+  append(leftCol, box, connector);
+
+  /* ── right column: YES → exit ── */
+  var rightCol = el('div', { cls: 'fft-right-col' });
+  var yesConn  = append(
+    el('div', { cls: 'fft-yes-connector' }),
+    el('div', { cls: 'fft-yes-line' }),
+    el('span', { cls: 'fft-yes-label', text: 'YES →' })
+  );
+  var exitWidget = editing
+    ? outcomeToggle(node.exit_class, function(v) { tree.nodes[i].exit_class = v; })
+    : outcomePill(node.exit_class);
+  append(rightCol, yesConn, exitWidget);
+
+  append(row, leftCol, rightCol);
+  return row;
+}
+
+/* ── Main render ─────────────────────────────────────────────── */
+
+function render() {
+  var root = document.getElementById('root');
+  root.innerHTML = '';
+
+  if (!tree || !tree.nodes || !tree.nodes.length) {
+    root.appendChild(el('div', {
+      style: 'color:#94a3b8;font-size:14px;padding:12px 0',
+      text:  'No model available yet.',
+    }));
+    updateHeight();
+    return;
+  }
+
+  var fftDiv = el('div', { cls: 'fft-tree' });
+
+  /* Drag hint */
+  if (editing) {
+    fftDiv.appendChild(el('div', {
+      cls:  'fft-drag-hint',
+      text: 'Drag ⠿ to reorder steps',
+    }));
+  }
+
+  /* Step rows */
+  tree.nodes.forEach(function(node, i) {
+    fftDiv.appendChild(buildStepRow(node, i));
+  });
+
+  /* Default box */
+  var defLabel  = el('div', { cls: 'fft-default-label', text: 'DEFAULT — if no step applies' });
+  var defWidget = editing
+    ? outcomeToggle(tree.default_class, function(v) { tree.default_class = v; })
+    : outcomePill(tree.default_class);
+  append(fftDiv, append(el('div', { cls: 'fft-default-box' }), defLabel, defWidget));
+
+  /* Apply button (editing) */
+  if (editing) {
+    var applyBtn = el('button', { cls: 'fft-apply-btn', text: 'Apply changes' });
+    applyBtn.addEventListener('click', function() {
+      window.parent.postMessage(
+        { isStreamlitMessage: true, type: 'streamlit:setComponentValue', value: tree, dataType: 'json' },
+        '*'
+      );
+      applyBtn.textContent = '✓ Changes applied';
+      applyBtn.classList.add('fft-saved');
+      setTimeout(function() {
+        applyBtn.textContent = 'Apply changes';
+        applyBtn.classList.remove('fft-saved');
+      }, 3000);
+    });
+    fftDiv.appendChild(applyBtn);
+  }
+
+  root.appendChild(fftDiv);
+  updateHeight();
+}
+
+/* ── Height sync ─────────────────────────────────────────────── */
+
+function updateHeight() {
+  requestAnimationFrame(function() {
+    var h = Math.max(document.body.scrollHeight, 100);
+    window.parent.postMessage({ isStreamlitMessage: true, type: 'streamlit:setFrameHeight', height: h }, '*');
+  });
+}
+
+if (typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(updateHeight).observe(document.body);
+}
+
+/* ── Streamlit integration ───────────────────────────────────── */
+
+window.addEventListener('message', function(event) {
+  if (!event.data || !event.data.type) return;
+  if (event.data.type === 'streamlit:render') {
+    var args = event.data.args || {};
+    tree    = args.tree ? JSON.parse(JSON.stringify(args.tree)) : null;
+    editing = !!args.editing;
+    params  = args.params || [];
+    render();
+  }
+});
+
+window.parent.postMessage({ isStreamlitMessage: true, type: 'streamlit:componentReady', apiVersion: 1 }, '*');
+</script>
+</body>
+</html>
