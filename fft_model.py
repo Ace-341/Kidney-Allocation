@@ -38,9 +38,17 @@ Public API
 """
 
 import json
+import os
 import numpy as np
 import pandas as pd
 from sklearn.metrics import balanced_accuracy_score
+
+# Any node whose split threshold has a smaller absolute magnitude than this is
+# treated as a "near-tie" cue — the two candidates are barely distinguishable
+# on that dimension, so a single coarse cutoff is a weak way to decide. Every
+# such node automatically gets one extra tie-breaker node appended after it
+# (see FastFrugalTree.attach_near_tie_refinements / _best_refine_split below).
+NEAR_TIE_ABS_THRESHOLD = 4.0
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -98,8 +106,9 @@ class FastFrugalTree:
     Class 1 == "prefer candidate A", class 0 == "prefer candidate B".
     """
 
-    def __init__(self, max_depth=4):
+    def __init__(self, max_depth=4, near_tie_threshold=NEAR_TIE_ABS_THRESHOLD):
         self.max_depth = int(max_depth)
+        self.near_tie_threshold = float(near_tie_threshold)
         self.nodes = []
         self.default_class = 0
         self.default_support = 0.0
@@ -196,15 +205,123 @@ class FastFrugalTree:
             self.default_purity = 0.5
         return self
 
+    # ── near-tie tie-breaker nodes ──────────────────────────────────────────
+    def attach_near_tie_refinements(self, F, y):
+        """
+        Walk every node in order. For any node whose split is a "near-tie" cue
+        (abs(threshold) < self.near_tie_threshold — i.e. candidates are barely
+        distinguishable on that dimension) attach one extra child node ("refine")
+        that only fires on the rows which satisfied that node's condition. This
+        gives close calls a real second check instead of a single coarse cutoff.
+
+        A node's `refine` sub-node is a compact single-split test, evaluated
+        strictly after the parent condition is true:
+            refine.feature  refine.op  refine.threshold  -> true_class
+            else                                          -> false_class
+
+        Any node that no longer qualifies (near-tie condition broken because a
+        threshold was edited) has its stale refine dropped, so this is safe to
+        call repeatedly (e.g. after every retrain or user edit).
+
+        Nodes carrying a refine with `"manual": True` — added on purpose via
+        the editor's "add a node to the right" control, rather than detected
+        automatically — are left untouched here entirely, so a manual addition
+        is never silently removed just because its parent threshold isn't
+        (or is no longer) a near-tie value.
+        """
+        X = np.asarray(F, dtype=float)
+        y = np.asarray(y).astype(int)
+        n_total = max(1, len(y))
+        reached = np.ones(len(y), dtype=bool)
+
+        for node in self.nodes:
+            xs = X[:, node["feature_idx"]]
+            cond = (xs >= node["threshold"]) if node["op"] == ">=" else (xs <= node["threshold"])
+            exit_here = reached & cond
+
+            if node.get("refine", {}).get("manual"):
+                reached = reached & ~cond
+                continue  # user-added — leave exactly as configured
+
+            node.pop("refine", None)
+            is_near_tie = abs(node["threshold"]) < self.near_tie_threshold
+            if is_near_tie and int(exit_here.sum()) >= 4:
+                refine = self._best_refine_split(X, y, exit_here, node["feature_idx"], n_total)
+                if refine is not None:
+                    node["refine"] = refine
+
+            reached = reached & ~cond
+        return self
+
+    def _best_refine_split(self, X, y, mask, exclude_idx, n_total):
+        """
+        Among the rows that satisfied a near-tie parent condition, find the
+        single other cue that best separates them into A vs B. Returns a
+        refine-node dict, or None if no cue actually distinguishes anything
+        (e.g. every row in this slice already agrees on the same class).
+        """
+        idx = np.where(mask)[0]
+        yr = y[idx]
+        if len(idx) < 4 or len(np.unique(yr)) < 2:
+            return None
+
+        best = None  # (n_correct, dict)
+        for fidx in range(X.shape[1]):
+            if fidx == exclude_idx:
+                continue
+            xr = X[idx, fidx]
+            for thr in self._candidate_thresholds(xr):
+                for op in (">=", "<="):
+                    M = (xr >= thr) if op == ">=" else (xr <= thr)
+                    n_t = int(M.sum())
+                    n_f = len(idx) - n_t
+                    if n_t == 0 or n_f == 0:
+                        continue
+                    true_class = int(round(yr[M].mean()))
+                    false_class = int(round(yr[~M].mean()))
+                    if true_class == false_class:
+                        continue  # doesn't actually break the tie either way
+                    n_correct = (int((yr[M] == true_class).sum())
+                                 + int((yr[~M] == false_class).sum()))
+                    if best is None or n_correct > best[0]:
+                        purity_t = float((yr[M] == true_class).mean())
+                        purity_f = float((yr[~M] == false_class).mean())
+                        best = (n_correct, {
+                            "feature":      self.feature_names[fidx],
+                            "feature_idx":  fidx,
+                            "op":           op,
+                            "threshold":    float(thr),
+                            "true_class":   true_class,
+                            "false_class":  false_class,
+                            "support":      n_t / n_total,
+                            "false_support": n_f / n_total,
+                            "purity":       purity_t,
+                            "false_purity": purity_f,
+                        })
+        return best[1] if best else None
+
     # ── single-row evaluation ───────────────────────────────────────────────
     def _row_predict(self, row):
-        """Return (predicted_class, exit_node_index, purity). exit_index -1 = default."""
+        """
+        Return (predicted_class, exit_node_index, purity, refine_branch).
+        exit_node_index -1 = fell through to the default leaf.
+        refine_branch is None (no tie-breaker involved), True, or False —
+        which side of a near-tie node's tie-breaker fired, when one exists.
+        """
         for i, node in enumerate(self.nodes):
             x = row[node["feature_idx"]]
             cond = (x >= node["threshold"]) if node["op"] == ">=" else (x <= node["threshold"])
             if cond:
-                return node["exit_class"], i, node["purity"]
-        return self.default_class, -1, self.default_purity
+                refine = node.get("refine")
+                if refine:
+                    rx = row[refine["feature_idx"]]
+                    rcond = ((rx >= refine["threshold"]) if refine["op"] == ">="
+                             else (rx <= refine["threshold"]))
+                    cls = refine["true_class"] if rcond else refine["false_class"]
+                    purity = refine["purity"] if rcond else refine["false_purity"]
+                    return cls, i, purity, bool(rcond)
+                return node["exit_class"], i, node["purity"], None
+        return self.default_class, -1, self.default_purity, None
 
     def predict(self, X):
         X = np.asarray(X, dtype=float)
@@ -219,7 +336,7 @@ class FastFrugalTree:
             X = X.reshape(1, -1)
         out = []
         for r in X:
-            cls, _i, purity = self._row_predict(r)
+            cls, _i, purity, _rb = self._row_predict(r)
             conf = min(max(float(purity), 0.5), 1.0)
             p1 = conf if cls == 1 else 1.0 - conf
             out.append([1.0 - p1, p1])
@@ -253,6 +370,26 @@ class FastFrugalTree:
                 node["purity"] = float((y[exit_here] == node["exit_class"]).mean())
             else:
                 node["purity"] = 0.5
+
+            refine = node.get("refine")
+            if refine:
+                ridx = np.where(exit_here)[0]
+                if len(ridx) > 0:
+                    rx = X[ridx, refine["feature_idx"]]
+                    rcond = ((rx >= refine["threshold"]) if refine["op"] == ">="
+                             else (rx <= refine["threshold"]))
+                    ry = y[ridx]
+                    n_t, n_f = int(rcond.sum()), int((~rcond).sum())
+                    refine["support"] = n_t / n_total
+                    refine["false_support"] = n_f / n_total
+                    refine["purity"] = (float((ry[rcond] == refine["true_class"]).mean())
+                                         if n_t > 0 else 0.5)
+                    refine["false_purity"] = (float((ry[~rcond] == refine["false_class"]).mean())
+                                               if n_f > 0 else 0.5)
+                else:
+                    refine["support"] = refine["false_support"] = 0.0
+                    refine["purity"] = refine["false_purity"] = 0.5
+
             reached = reached & ~cond
         n_def = int(reached.sum())
         self.default_support = n_def / n_total
@@ -261,29 +398,48 @@ class FastFrugalTree:
         return self
 
     # ── (de)serialisation ───────────────────────────────────────────────────
+    @staticmethod
+    def _refine_to_dict(r):
+        d = {
+            "feature": r["feature"], "op": r["op"], "threshold": float(r["threshold"]),
+            "true_class": int(r["true_class"]), "false_class": int(r["false_class"]),
+            "support": float(r.get("support", 0.0)),
+            "false_support": float(r.get("false_support", 0.0)),
+            "purity": float(r.get("purity", 0.5)),
+            "false_purity": float(r.get("false_purity", 0.5)),
+        }
+        if r.get("manual"):
+            d["manual"] = True
+        return d
+
     def to_dict(self):
+        nodes_out = []
+        for n in self.nodes:
+            nd = {"feature": n["feature"], "op": n["op"],
+                  "threshold": float(n["threshold"]), "exit_class": int(n["exit_class"]),
+                  "support": float(n.get("support", 0.0)), "purity": float(n.get("purity", 0.5))}
+            if n.get("refine"):
+                nd["refine"] = self._refine_to_dict(n["refine"])
+            nodes_out.append(nd)
         return {
-            "nodes": [
-                {"feature": n["feature"], "op": n["op"],
-                 "threshold": float(n["threshold"]), "exit_class": int(n["exit_class"]),
-                 "support": float(n.get("support", 0.0)), "purity": float(n.get("purity", 0.5))}
-                for n in self.nodes
-            ],
+            "nodes": nodes_out,
             "default_class":   int(self.default_class),
             "default_support": float(self.default_support),
             "default_purity":  float(self.default_purity),
             "feature_names":   list(self.feature_names),
             "max_depth":       self.max_depth,
+            "near_tie_threshold": self.near_tie_threshold,
         }
 
     @classmethod
     def from_dict(cls, d, feature_names=None):
-        t = cls(max_depth=d.get("max_depth", 4))
+        t = cls(max_depth=d.get("max_depth", 4),
+                near_tie_threshold=d.get("near_tie_threshold", NEAR_TIE_ABS_THRESHOLD))
         t.feature_names = list(feature_names or d.get("feature_names") or [])
         name_to_idx = {n: i for i, n in enumerate(t.feature_names)}
         t.nodes = []
         for n in d.get("nodes", []):
-            t.nodes.append({
+            node = {
                 "feature":     n["feature"],
                 "feature_idx": name_to_idx.get(n["feature"], 0),
                 "op":          n["op"],
@@ -291,7 +447,24 @@ class FastFrugalTree:
                 "exit_class":  int(n["exit_class"]),
                 "support":     float(n.get("support", 0.0)),
                 "purity":      float(n.get("purity", 0.5)),
-            })
+            }
+            r = n.get("refine")
+            if r:
+                node["refine"] = {
+                    "feature":       r["feature"],
+                    "feature_idx":   name_to_idx.get(r["feature"], 0),
+                    "op":            r["op"],
+                    "threshold":     float(r["threshold"]),
+                    "true_class":    int(r["true_class"]),
+                    "false_class":   int(r["false_class"]),
+                    "support":       float(r.get("support", 0.0)),
+                    "false_support": float(r.get("false_support", 0.0)),
+                    "purity":        float(r.get("purity", 0.5)),
+                    "false_purity":  float(r.get("false_purity", 0.5)),
+                }
+                if r.get("manual"):
+                    node["refine"]["manual"] = True
+            t.nodes.append(node)
         t.default_class   = int(d.get("default_class", 0))
         t.default_support = float(d.get("default_support", 0.0))
         t.default_purity  = float(d.get("default_purity", 0.5))
@@ -323,20 +496,40 @@ def _pretty(feature):
     return feature.replace("_diff", "").replace("_", " ").title()
 
 
+def _fmt_num(x, decimals=2):
+    """Round for display and drop noisy trailing zeros: 0.50 -> '0.5', 4.00 -> '4'."""
+    r = round(float(x), decimals)
+    if r == 0:
+        r = 0.0  # avoid '-0'
+    if float(r).is_integer():
+        return str(int(r))
+    return f"{r:g}"
+
+
 def explain_prediction(tree, params, feat_names, d, pred):
     """Plain-English explanation of which cue decided this pair."""
     a = {p: float(d.get(f"A_{p}", 0)) for p in params}
     b = {p: float(d.get(f"B_{p}", 0)) for p in params}
     F = feature_row(params, a, b, feat_names)
-    cls, exit_i, purity = tree._row_predict(F.values[0])
+    cls, exit_i, purity, refine_branch = tree._row_predict(F.values[0])
     pred_label = "A" if pred == 1 else "B"
 
     if exit_i >= 0:
         n = tree.nodes[exit_i]
+        if refine_branch is not None and n.get("refine"):
+            r = n["refine"]
+            tie_radius = _fmt_num(abs(n["threshold"]))
+            return (
+                f"The tree decided **Option {pred_label}** at step {exit_i + 1}: this pair was "
+                f"a close call on `{_pretty(n['feature'])}` (|A − B| ≤ {tie_radius}), "
+                f"so it used the tie-breaker check on `{_pretty(r['feature'])}` "
+                f"({r['op']} {_fmt_num(r['threshold'])}) to land on Patient {pred_label}. "
+                f"This tie-breaker agreed with your choices {purity:.0%} of the time in training."
+            )
         return (
             f"The tree decided **Option {pred_label}** at step {exit_i + 1}: "
             f"the condition `{_pretty(n['feature'])} ({n['feature']}) "
-            f"{n['op']} {round(n['threshold'], 2)}` held, which exits straight to "
+            f"{n['op']} {_fmt_num(n['threshold'])}` held, which exits straight to "
             f"Patient {pred_label}. This cue agreed with your choices "
             f"{purity:.0%} of the time in training."
         )
@@ -345,6 +538,290 @@ def explain_prediction(tree, params, feat_names, d, pred):
         f"default preference for **Option {pred_label}** "
         f"({tree.default_purity:.0%} reliable on training)."
     )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# PLAIN-ENGLISH EXPLANATIONS  (Groq LLM, with a deterministic fallback)
+# ════════════════════════════════════════════════════════════════════════════
+#
+# Two things are generated here, per the study's requirements:
+#   1. explain_node_llm / explain_refine_llm — a short, non-technical caption
+#      for every node (and every tie-breaker), like the "here's what this
+#      feature does" tooltip you'd see the first time you open a new app.
+#   2. explain_tree_summary_llm — one short paragraph summarising, in plain
+#      English, what the participant seems to value overall.
+#
+# If GROQ_API_KEY isn't set, or the call fails for any reason, everything
+# falls back to a deterministic template — the app never breaks or blocks on
+# the network call.
+
+_groq_client = None
+_groq_unavailable = False
+
+
+def _get_groq_client():
+    global _groq_client, _groq_unavailable
+    if _groq_client is not None or _groq_unavailable:
+        return _groq_client
+    try:
+        from groq import Groq
+        if not os.environ.get("GROQ_API_KEY"):
+            _groq_unavailable = True
+            return None
+        _groq_client = Groq()
+        return _groq_client
+    except Exception:
+        _groq_unavailable = True
+        return None
+
+
+def _groq_chat(system, user, max_tokens=180):
+    client = _get_groq_client()
+    if client is None:
+        return None
+    try:
+        resp = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            max_tokens=max_tokens,
+            temperature=0.4,
+        )
+        text = resp.choices[0].message.content
+        return text.strip() if text else None
+    except Exception:
+        return None
+
+
+_OP_PHRASE = {
+    ">=": "greater than or equal to",
+    "<=": "less than or equal to",
+    ">":  "greater than",
+    "<":  "less than",
+}
+
+
+def _fallback_node_explanation(node):
+    pretty = _pretty(node["feature"]).lower()
+    prefers = "Patient A" if node["exit_class"] == 1 else "Patient B"
+    reliability = ("very reliable" if node["purity"] >= 0.85
+                   else "fairly reliable" if node["purity"] >= 0.65
+                   else "a weaker signal")
+    if node.get("refine"):
+        tie_radius = _fmt_num(abs(node["threshold"]))
+        return (
+            f"If the {pretty} difference between Patient A and Patient B is small — "
+            f"{tie_radius} or less either way — we treat it as a close call and use one "
+            f"more check (below) instead of guessing. This came up in your choices about "
+            f"{node['purity']:.0%} of the time — {reliability}."
+        )
+    op_phrase = _OP_PHRASE.get(node["op"], node["op"])
+    return (
+        f"If the {pretty} difference (Patient A minus Patient B) is {op_phrase} "
+        f"{_fmt_num(node['threshold'])}, we choose {prefers}. "
+        f"This matched your actual choices about {node['purity']:.0%} of the time — "
+        f"{reliability}."
+    )
+
+
+def _fallback_refine_explanation(node, refine, near_tie_threshold):
+    pretty_parent = _pretty(node["feature"]).lower()
+    pretty_r = _pretty(refine["feature"]).lower()
+    prefers_t = "Patient A" if refine["true_class"] == 1 else "Patient B"
+    prefers_f = "Patient A" if refine["false_class"] == 1 else "Patient B"
+    op_phrase = _OP_PHRASE.get(refine["op"], refine["op"])
+    tie_radius = _fmt_num(abs(node["threshold"]))
+    return (
+        f"Since the {pretty_parent} difference was small (within {tie_radius}), we look at "
+        f"{pretty_r} instead: if that difference is {op_phrase} {_fmt_num(refine['threshold'])}, "
+        f"we choose {prefers_t}; otherwise we choose {prefers_f}."
+    )
+
+
+def _fallback_summary_explanation(tree_dict):
+    nodes = tree_dict.get("nodes", [])
+    if not nodes:
+        return "Not enough decisions yet to summarise a clear pattern."
+    lead = nodes[0]
+    bits = [
+        f"The factor that seems to matter most to you is **{_pretty(lead['feature'])}** — it's "
+        f"the first thing the model checks, and on its own it explained about "
+        f"{lead['support']:.0%} of your choices."
+    ]
+    if len(nodes) > 1:
+        others = ", ".join(_pretty(n["feature"]) for n in nodes[1:3])
+        bits.append(
+            f"After that, you also seem to weigh **{others}** when the first factor doesn't "
+            f"clearly decide it."
+        )
+    default_txt = "Patient A" if tree_dict.get("default_class", 0) == 1 else "Patient B"
+    bits.append(f"When none of these checks clearly apply, your default leaning is toward "
+                f"**{default_txt}**.")
+    return " ".join(bits)
+
+
+def explain_node_llm(node):
+    """One-sentence, plain-English caption for a single tree node, always in the
+    literal pattern: 'If the <factor> difference is <plain comparison>, we choose
+    <patient>.' — e.g. 'If the age difference is less than or equal to 4, we
+    choose Patient A.'"""
+    pretty = _pretty(node["feature"]).lower()
+    prefers = "Patient A" if node["exit_class"] == 1 else "Patient B"
+    system = (
+        "You write exactly one plain-English sentence for a decision-tree step, aimed at "
+        "non-technical, first-time app users. Always follow this literal pattern: "
+        "'If the <factor> difference is <plain comparison, e.g. \"less than or equal to 4\">, "
+        "we choose <patient>.' For example: 'If the age difference is less than or equal to "
+        "4, we choose Patient A.' No jargon (no 'purity', 'coefficient', 'threshold', 'exit "
+        "class'), no markdown, one sentence only. You may add a short second sentence noting "
+        "how often this matched the participant's real choices, in plain words."
+    )
+    if node.get("refine"):
+        tie_radius = _fmt_num(abs(node["threshold"]))
+        user = (
+            f"The step checks how close the two patients (A and B) are on '{pretty}' in an "
+            f"organ-allocation preference study: is the {pretty} difference {tie_radius} or "
+            f"less, either direction? When they're that close, the model doesn't guess "
+            f"outright — it uses a follow-up tie-breaker instead (shown separately). Write "
+            f"one sentence, following the same 'If ... , we ...' style, saying that when the "
+            f"{pretty} difference is that small we treat it as a close call and check one "
+            f"more thing rather than choosing right away."
+        )
+    else:
+        user = (
+            f"The step compares '{pretty}' between two patients (A and B) in an organ-allocation "
+            f"preference study. The rule is: (Patient A's value minus Patient B's value) "
+            f"{node['op']} {_fmt_num(node['threshold'])}. When that's true, the model immediately "
+            f"recommends {prefers}. This rule matched the participant's actual choices "
+            f"{node['purity']:.0%} of the time. Write the caption, following the pattern above "
+            f"exactly (e.g. 'If the {pretty} difference is {_OP_PHRASE.get(node['op'], node['op'])} "
+            f"{_fmt_num(node['threshold'])}, we choose {prefers}.')."
+        )
+    return _groq_chat(system, user, max_tokens=90) or _fallback_node_explanation(node)
+
+
+def explain_refine_llm(node, refine, near_tie_threshold):
+    """One-sentence caption for a near-tie tie-breaker node, same literal
+    'If the <factor> difference is <comparison>, we choose <patient>' pattern."""
+    pretty_parent = _pretty(node["feature"]).lower()
+    pretty_r = _pretty(refine["feature"]).lower()
+    prefers_t = "Patient A" if refine["true_class"] == 1 else "Patient B"
+    prefers_f = "Patient A" if refine["false_class"] == 1 else "Patient B"
+    op_phrase = _OP_PHRASE.get(refine["op"], refine["op"])
+    system = (
+        "You write exactly one or two plain-English sentences for a decision-tree "
+        "'tie-breaker' step, aimed at non-technical first-time app users. Follow this literal "
+        "pattern: 'Since <first factor> was close, we look at <second factor>: if the "
+        "difference is <plain comparison>, we choose <patient>; otherwise we choose <the "
+        "other patient>.' No jargon, no markdown."
+    )
+    user = (
+        f"On '{pretty_parent}' the two patients were a close call (within "
+        f"{_fmt_num(abs(node['threshold']))} of each other), so instead of guessing, the "
+        f"model checks '{pretty_r}' next. Rule: if the {pretty_r} difference (Patient A's "
+        f"value minus Patient B's value) is {op_phrase} {_fmt_num(refine['threshold'])}, "
+        f"recommend {prefers_t}; otherwise recommend {prefers_f}. Write the caption following "
+        f"the pattern above exactly."
+    )
+    text = _groq_chat(system, user, max_tokens=100)
+    return text or _fallback_refine_explanation(node, refine, near_tie_threshold)
+
+
+def explain_tree_summary_llm(tree_dict):
+    """A short paragraph summarising what the participant seems to value overall."""
+    nodes = tree_dict.get("nodes", [])
+    if not nodes:
+        return "Not enough decisions yet to summarise a clear pattern."
+    lines = []
+    for i, n in enumerate(nodes):
+        prefers = "A" if n["exit_class"] == 1 else "B"
+        lines.append(
+            f"{i + 1}. {_pretty(n['feature'])}: (A-B) {n['op']} {_fmt_num(n['threshold'])} "
+            f"-> prefer {prefers} (matched {n['purity']:.0%} of choices, covers "
+            f"{n['support']:.0%})"
+        )
+        if n.get("refine"):
+            r = n["refine"]
+            lines.append(
+                f"   near-tie tie-breaker: {_pretty(r['feature'])} {r['op']} "
+                f"{_fmt_num(r['threshold'])} -> A={r['true_class'] == 1}, else B"
+            )
+    default_txt = "A" if tree_dict.get("default_class", 0) == 1 else "B"
+    lines.append(f"Default (nothing above applied): prefer {default_txt}")
+
+    system = (
+        "You are summarising a study participant's own decision pattern, for the participant "
+        "themselves to read. Write 3-4 short, warm, plain-English sentences (no jargon, no "
+        "markdown, no bullet points) describing which factor(s) they seem to weigh most "
+        "heavily and in what direction, in the order the checks are applied. Be descriptive "
+        "and neutral, not judgmental."
+    )
+    user = "Here is the ordered list of checks in their model:\n" + "\n".join(lines)
+    text = _groq_chat(system, user, max_tokens=220)
+    return text or _fallback_summary_explanation(tree_dict)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# MODEL REVIEW — comparing two trained trees (e.g. before/after Part 2)
+# ════════════════════════════════════════════════════════════════════════════
+
+def summarize_model_changes(old_tree, new_tree):
+    """
+    Plain-English review of what changed between two trained trees — used to
+    show the participant how their model shifted after answering the Part 2
+    follow-up scenarios. Purely descriptive (no LLM call needed: this is a
+    factual diff, not an interpretation).
+    """
+    old_nodes = old_tree.get("nodes", [])
+    new_nodes = new_tree.get("nodes", [])
+    if not old_nodes and not new_nodes:
+        return "Neither model had enough data to find a clear pattern."
+
+    old_features = [n["feature"] for n in old_nodes]
+    new_features = [n["feature"] for n in new_nodes]
+    bits = []
+
+    if old_features == new_features:
+        bits.append(
+            "The same factors, in the same order, still drive your model — the extra "
+            "scenarios confirmed the pattern rather than changing it."
+        )
+    else:
+        added = [f for f in new_features if f not in old_features]
+        removed = [f for f in old_features if f not in new_features]
+        if added:
+            bits.append(
+                f"{'A new factor now shows up' if len(added) == 1 else 'New factors now show up'} "
+                f"in your model: {', '.join(_pretty(f) for f in added)}."
+            )
+        if removed:
+            bits.append(
+                f"{'This factor dropped out' if len(removed) == 1 else 'These factors dropped out'}: "
+                f"{', '.join(_pretty(f) for f in removed)}."
+            )
+        if not added and not removed and old_features != new_features:
+            bits.append("The same factors are used, but the order changed.")
+
+    old_refines = sum(1 for n in old_nodes if n.get("refine"))
+    new_refines = sum(1 for n in new_nodes if n.get("refine"))
+    if new_refines > old_refines:
+        n = new_refines - old_refines
+        bits.append(f"{n} new close-call tie-breaker step{'s' if n != 1 else ''} appeared.")
+    elif new_refines < old_refines:
+        n = old_refines - new_refines
+        bits.append(f"{n} tie-breaker step{'s' if n != 1 else ''} {'are' if n != 1 else 'is'} "
+                    f"no longer needed.")
+
+    old_default = "Patient A" if old_tree.get("default_class", 0) == 1 else "Patient B"
+    new_default = "Patient A" if new_tree.get("default_class", 0) == 1 else "Patient B"
+    if old_default != new_default:
+        bits.append(f"Your default leaning also flipped, from {old_default} to {new_default}.")
+
+    if not bits:
+        bits.append("Your model looks essentially unchanged after the extra scenarios.")
+    return " ".join(bits)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -382,6 +859,11 @@ def train_fft(decisions_json, params, override_json=None, max_depth=4):
         tree = FastFrugalTree(max_depth=max_depth).fit(F_aug, y_aug, feature_names=feat_names)
         edited = False
 
+    # Attach/refresh the near-tie tie-breaker nodes against the real training
+    # data (works whether the tree was just fit or loaded from a user override).
+    tree.attach_near_tie_refinements(F_aug.values, y_aug)
+    tree.recompute_stats(F_aug, y_aug)
+
     if not tree.nodes:
         return None, None, None, feat_names, (
             "Could not build a tree from these decisions — answer a few more, "
@@ -399,9 +881,11 @@ def train_fft(decisions_json, params, override_json=None, max_depth=4):
     for n in tree.nodes:
         direction = 1 if n["exit_class"] == 1 else -1   # +A / -B
         strength = max(0.0, (n["purity"] - 0.5) * 2.0)  # 0..1
-        rows.append({
+        rule_text = (f'|{n["feature"]}| <= {_fmt_num(abs(n["threshold"]))}' if n.get("refine")
+                     else f'{n["feature"]} {n["op"]} {_fmt_num(n["threshold"])}')
+        row = {
             "feature":    n["feature"],
-            "rule":       f'{n["feature"]} {n["op"]} {round(n["threshold"], 2)}',
+            "rule":       rule_text,
             "op":         n["op"],
             "threshold":  float(n["threshold"]),
             "exit_class": int(n["exit_class"]),
@@ -409,8 +893,23 @@ def train_fft(decisions_json, params, override_json=None, max_depth=4):
             "purity":     float(n["purity"]),
             "coef":       float(direction * strength),
             "importance": float(n["support"] * strength),
-        })
+        }
+        r = n.get("refine")
+        if r:
+            row["refine_rule"] = f'{r["feature"]} {r["op"]} {_fmt_num(r["threshold"])}'
+            row["refine_true_class"] = int(r["true_class"])
+            row["refine_false_class"] = int(r["false_class"])
+        rows.append(row)
     nodes_df = pd.DataFrame(rows)
+
+    # ── plain-English explanations (LLM, deterministic fallback) ─────────────
+    node_explanations = []
+    for n in tree.nodes:
+        entry = {"explanation": explain_node_llm(n)}
+        if n.get("refine"):
+            entry["refine_explanation"] = explain_refine_llm(n, n["refine"], tree.near_tie_threshold)
+        node_explanations.append(entry)
+    summary_explanation = explain_tree_summary_llm(tree.to_dict())
 
     # ── per-decision agreement (drives Examples tab) ─────────────────────────
     preds_o = tree.predict(F.values)
@@ -433,5 +932,7 @@ def train_fft(decisions_json, params, override_json=None, max_depth=4):
         "edited":       edited,
         "per_decision": per_decision,
         "tree":         tree.to_dict(),
+        "node_explanations":   node_explanations,
+        "summary_explanation": summary_explanation,
     }
     return tree, nodes_df, stats, feat_names, None
