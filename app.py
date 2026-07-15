@@ -11,6 +11,9 @@ import json
 import os
 import random
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from fft_model import train_fft, summarize_model_changes
 from fft_viz import fft_viz
