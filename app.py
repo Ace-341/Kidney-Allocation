@@ -222,6 +222,15 @@ def _pretty_feature_label(feature):
     base = feature[:-5] if feature.endswith("_diff") else feature
     return base.replace("_", " ").title()
 
+
+def _clear_edit_widget_state():
+    """Clear per-node widget keys so they reinitialise from the new pending_tree."""
+    for j in range(20):
+        for key in (f"feat_{j}", f"op_{j}", f"thr_{j}", f"cls_{j}",
+                    f"refine_feat_{j}", f"refine_op_{j}", f"refine_thr_{j}", f"refine_pref_{j}"):
+            st.session_state.pop(key, None)
+    st.session_state.pop("def_cls", None)
+
 # ── Session state ─────────────────────────────────────────────────────────────
 for k, v in {
     "page":            "login",
@@ -647,147 +656,205 @@ elif st.session_state.page == "results":
             working_tree = rtree_dict
             st.session_state.pending_tree = None   # clear when not editing
 
-        # Add decision step button (native Streamlit — reliable)
         if editing:
+            # ── Single unified editing UI — all controls in one place ─────────
+            wt = st.session_state.pending_tree
+            feat_options = [p + "_diff" for p in rparams] or ["age_diff"]
+
             if st.button("＋  Add decision step", key="add_step"):
-                wt   = st.session_state.pending_tree
                 used = {n["feature"] for n in wt["nodes"]}
                 feat = next(
                     (p + "_diff" for p in rparams if p + "_diff" not in used),
                     rparams[0] + "_diff" if rparams else "age_diff",
                 )
-                new_node = {
-                    "feature": feat, "op": ">=", "threshold": 0.0,
-                    "exit_class": 1, "support": 0.0, "purity": 0.5,
-                }
                 st.session_state.pending_tree = {
-                    **wt, "nodes": wt["nodes"] + [new_node]
+                    **wt, "nodes": wt["nodes"] + [{
+                        "feature": feat, "op": ">=", "threshold": 0.0,
+                        "exit_class": 1, "support": 0.0, "purity": 0.5,
+                    }],
                 }
+                _clear_edit_widget_state()
                 st.rerun()
 
-        # Per-node "add a node to the right" — a manual tie-breaker, same shape
-        # as the automatic near-tie refine in fft_model, but available on any
-        # step by choice rather than only when the model auto-detects a close
-        # call. The live JS tree editor (fft_viz) doesn't know how to draw
-        # this, so the small SVG preview right below shows it directly.
-        if editing:
-            st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
-            st.markdown("**Add a node to the right of a step**")
-            st.markdown(
-                f"<div style='color:{COLORS['text_secondary']};font-size:13px;"
-                f"margin-bottom:12px;line-height:1.5'>Turn any step's end point into one "
-                f"more check, instead of exiting straight to Prefer A / Prefer B.</div>",
-                unsafe_allow_html=True,
-            )
+            st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+            st.markdown("**Edit decision steps**")
             st.markdown("<div class='content-card'>", unsafe_allow_html=True)
-            wt = st.session_state.pending_tree
-            feat_options = [p + "_diff" for p in rparams] or ["age_diff"]
-            for i, node in enumerate(wt["nodes"]):
-                has_refine = bool(node.get("refine"))
+            new_nodes = list(wt["nodes"])
+            for i, node in enumerate(new_nodes):
                 if i > 0:
                     st.markdown(
-                        f"<div style='border-top:1px solid {COLORS['border']};"
-                        f"margin:12px 0'></div>", unsafe_allow_html=True,
-                    )
-                rc1, rc2 = st.columns([4, 1.4])
-                with rc1:
-                    st.markdown(
-                        f"<div style='padding-top:9px;font-size:14px;font-weight:500;"
-                        f"color:{COLORS['text']}'>Step {i + 1} · "
-                        f"{_pretty_feature_label(node['feature'])}</div>",
+                        f"<div style='border-top:1px solid {COLORS['border']};margin:12px 0'></div>",
                         unsafe_allow_html=True,
                     )
-                with rc2:
-                    if has_refine:
-                        if st.button("Remove node", key=f"rm_refine_{i}", use_container_width=True):
-                            new_nodes = list(wt["nodes"])
-                            new_nodes[i] = {k: v for k, v in new_nodes[i].items() if k != "refine"}
-                            st.session_state.pending_tree = {**wt, "nodes": new_nodes}
-                            st.rerun()
-                    else:
-                        if st.button("＋ Add node →", key=f"add_refine_{i}", use_container_width=True):
-                            used = {node["feature"]}
-                            feat = next((f for f in feat_options if f not in used), feat_options[0])
-                            new_nodes = list(wt["nodes"])
-                            new_nodes[i] = {
-                                **new_nodes[i],
-                                "refine": {
-                                    "feature": feat, "op": ">=", "threshold": 0.0,
-                                    "true_class": 1, "false_class": 0,
-                                    "support": 0.0, "false_support": 0.0,
-                                    "purity": 0.5, "false_purity": 0.5,
-                                    "manual": True,
-                                },
-                            }
-                            st.session_state.pending_tree = {**wt, "nodes": new_nodes}
-                            st.rerun()
 
+                # Step label + reorder + delete
+                hc1, hc2, hc3, hc4 = st.columns([4.5, 0.65, 0.65, 0.65])
+                with hc1:
+                    st.markdown(
+                        f"<div style='font-size:11.5px;font-weight:600;letter-spacing:.08em;"
+                        f"color:{COLORS['text_muted']};padding-top:8px'>STEP {i + 1}</div>",
+                        unsafe_allow_html=True,
+                    )
+                with hc2:
+                    if i > 0 and st.button("↑", key=f"up_{i}", use_container_width=True):
+                        new_nodes[i], new_nodes[i - 1] = new_nodes[i - 1], new_nodes[i]
+                        st.session_state.pending_tree = {**wt, "nodes": new_nodes}
+                        _clear_edit_widget_state()
+                        st.rerun()
+                with hc3:
+                    if i < len(new_nodes) - 1 and st.button("↓", key=f"dn_{i}", use_container_width=True):
+                        new_nodes[i], new_nodes[i + 1] = new_nodes[i + 1], new_nodes[i]
+                        st.session_state.pending_tree = {**wt, "nodes": new_nodes}
+                        _clear_edit_widget_state()
+                        st.rerun()
+                with hc4:
+                    if len(new_nodes) > 1 and st.button("✕", key=f"del_{i}", use_container_width=True):
+                        new_nodes.pop(i)
+                        st.session_state.pending_tree = {**wt, "nodes": new_nodes}
+                        _clear_edit_widget_state()
+                        st.rerun()
+
+                # Feature | Op | Threshold | Outcome
+                ec1, ec2, ec3, ec4 = st.columns([3, 1, 1.5, 1.5])
+                with ec1:
+                    new_feat = st.selectbox(
+                        "Factor", feat_options,
+                        index=feat_options.index(node["feature"]) if node["feature"] in feat_options else 0,
+                        key=f"feat_{i}", label_visibility="collapsed",
+                        format_func=_pretty_feature_label,
+                    )
+                with ec2:
+                    new_op = st.selectbox(
+                        "Op", [">=", "<="], index=0 if node["op"] == ">=" else 1,
+                        key=f"op_{i}", label_visibility="collapsed",
+                    )
+                with ec3:
+                    new_thr = st.number_input(
+                        "Threshold", value=float(node["threshold"]), step=0.5,
+                        key=f"thr_{i}", label_visibility="collapsed",
+                    )
+                with ec4:
+                    new_cls = st.selectbox(
+                        "Outcome", ["→ Prefer A", "→ Prefer B"],
+                        index=0 if node["exit_class"] == 1 else 1,
+                        key=f"cls_{i}", label_visibility="collapsed",
+                    )
+
+                updated_node = {
+                    **node,
+                    "feature":    new_feat,
+                    "op":         new_op,
+                    "threshold":  float(new_thr),
+                    "exit_class": 1 if new_cls == "→ Prefer A" else 0,
+                }
+
+                # Tie-breaker (refine) editing
                 if node.get("refine"):
                     r = node["refine"]
                     st.markdown(
                         f"<div style='color:{COLORS['text_muted']};font-size:12px;"
-                        f"margin:8px 0 6px'>If close on this step, check —</div>",
+                        f"margin:8px 0 4px'>If close on this step, check —</div>",
                         unsafe_allow_html=True,
                     )
-                    ec1, ec2, ec3, ec4 = st.columns([2, 1, 1, 1.3])
-                    with ec1:
-                        new_feat = st.selectbox(
+                    rc1, rc2, rc3, rc4, rc5 = st.columns([2.5, 0.85, 1.3, 1.6, 1])
+                    with rc1:
+                        r_feat = st.selectbox(
                             "Factor", feat_options,
                             index=feat_options.index(r["feature"]) if r["feature"] in feat_options else 0,
                             key=f"refine_feat_{i}", label_visibility="collapsed",
                             format_func=_pretty_feature_label,
                         )
-                    with ec2:
-                        new_op = st.selectbox(
+                    with rc2:
+                        r_op = st.selectbox(
                             "Op", [">=", "<="], index=0 if r["op"] == ">=" else 1,
                             key=f"refine_op_{i}", label_visibility="collapsed",
                         )
-                    with ec3:
-                        new_thr = st.number_input(
+                    with rc3:
+                        r_thr = st.number_input(
                             "Threshold", value=float(r["threshold"]), step=0.5,
                             key=f"refine_thr_{i}", label_visibility="collapsed",
                         )
-                    with ec4:
-                        new_pref = st.selectbox(
+                    with rc4:
+                        r_pref = st.selectbox(
                             "If true", ["Prefer A", "Prefer B"],
                             index=0 if r["true_class"] == 1 else 1,
                             key=f"refine_pref_{i}", label_visibility="collapsed",
                         )
-                    updated = {
-                        "feature": new_feat, "op": new_op, "threshold": float(new_thr),
-                        "true_class": 1 if new_pref == "Prefer A" else 0,
-                        "false_class": 0 if new_pref == "Prefer A" else 1,
-                        "support": r.get("support", 0.0), "false_support": r.get("false_support", 0.0),
-                        "purity": r.get("purity", 0.5), "false_purity": r.get("false_purity", 0.5),
-                        "manual": True,
+                    with rc5:
+                        if st.button("Remove", key=f"rm_refine_{i}", use_container_width=True):
+                            updated_node = {k: v for k, v in updated_node.items() if k != "refine"}
+                            new_nodes[i] = updated_node
+                            st.session_state.pending_tree = {**wt, "nodes": new_nodes}
+                            st.rerun()
+                    updated_node["refine"] = {
+                        **r,
+                        "feature":     r_feat,
+                        "op":          r_op,
+                        "threshold":   float(r_thr),
+                        "true_class":  1 if r_pref == "Prefer A" else 0,
+                        "false_class": 0 if r_pref == "Prefer A" else 1,
                     }
-                    if updated != r:
-                        new_nodes = list(wt["nodes"])
-                        new_nodes[i] = {**new_nodes[i], "refine": updated}
+                else:
+                    if st.button("＋ Add tie-breaker →", key=f"add_refine_{i}"):
+                        used_feats = {node["feature"]}
+                        r_feat_new = next((f for f in feat_options if f not in used_feats), feat_options[0])
+                        updated_node["refine"] = {
+                            "feature": r_feat_new, "op": ">=", "threshold": 0.0,
+                            "true_class": 1, "false_class": 0,
+                            "support": 0.0, "false_support": 0.0,
+                            "purity": 0.5, "false_purity": 0.5,
+                            "manual": True,
+                        }
+                        new_nodes[i] = updated_node
                         st.session_state.pending_tree = {**wt, "nodes": new_nodes}
-                        wt = st.session_state.pending_tree
+                        st.rerun()
+
+                new_nodes[i] = updated_node
+
+            # Default class
+            st.markdown(
+                f"<div style='border-top:1px solid {COLORS['border']};margin:14px 0 8px'></div>",
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f"<div style='font-size:11.5px;font-weight:600;letter-spacing:.08em;"
+                f"color:{COLORS['text_muted']};margin-bottom:8px'>DEFAULT — if no step applies</div>",
+                unsafe_allow_html=True,
+            )
+            new_def_cls = st.selectbox(
+                "Default outcome", ["→ Prefer A", "→ Prefer B"],
+                index=0 if wt.get("default_class", 0) == 1 else 1,
+                key="def_cls", label_visibility="collapsed",
+            )
             st.markdown("</div>", unsafe_allow_html=True)
 
+            # Sync all widget values back to pending_tree
+            updated_tree = {
+                **wt,
+                "nodes":         new_nodes,
+                "default_class": 1 if new_def_cls == "→ Prefer A" else 0,
+            }
+            if updated_tree != wt:
+                st.session_state.pending_tree = updated_tree
+
+            st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+            if st.button("✓  Apply changes", type="primary", key="apply_native", use_container_width=True):
+                save_fft_override(st.session_state.username, st.session_state.pending_tree)
+                train_fft_cached.clear()
+                st.session_state.wants_edit   = None
+                st.session_state.pending_tree = None
+                st.session_state._saved_msg   = True
+                _clear_edit_widget_state()
+                st.rerun()
+
             st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-            st.caption(
-                "Preview — the tree editor above doesn't draw these added nodes yet, "
-                "so here's what your changes actually look like:"
-            )
+            st.caption("Live preview of your changes (including tie-breakers):")
             preview_svg = fft_svg(st.session_state.pending_tree, DEFAULT_FFT_PALETTE)
             st.markdown(preview_svg, unsafe_allow_html=True)
             st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
 
-        edited_tree = fft_viz(
-            tree=working_tree, editing=editing, params=rparams, key="fft_main"
-        )
-
-        if edited_tree is not None:
-            save_fft_override(st.session_state.username, edited_tree)
-            train_fft_cached.clear()
-            st.session_state.wants_edit  = None
-            st.session_state.pending_tree = None
-            st.session_state._saved_msg  = True
-            st.rerun()
+        else:
+            fft_viz(tree=working_tree, editing=False, params=rparams, key="fft_main")
 
         if st.session_state.get("_saved_msg", False):
             st.success("Changes saved. The model now reflects your edits.")
