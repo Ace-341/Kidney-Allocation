@@ -728,7 +728,7 @@
         "B_urgency_score": 10.0
       }
     ],
-    "alignment_score": 2,
+    "alignment_score": 5,
     "fft_override": {
       "nodes": [
         {
@@ -736,24 +736,36 @@
           "op": ">=",
           "threshold": -1,
           "exit_class": 1,
-          "support": 0.05,
-          "purity": 1
+          "support": 0.75,
+          "purity": 0.6666666666666666
         },
         {
           "feature": "urgency_score_diff",
           "op": "<=",
-          "threshold": 3.5,
+          "threshold": 3.58,
           "exit_class": 0,
-          "support": 0.85,
-          "purity": 0.5588235294117647
+          "support": 0.225,
+          "purity": 1,
+          "refine": {
+            "feature": "age_diff",
+            "op": ">=",
+            "threshold": 0,
+            "true_class": 1,
+            "false_class": 0,
+            "support": 0,
+            "false_support": 0,
+            "purity": 0.5,
+            "false_purity": 0.5,
+            "manual": true
+          }
         },
         {
           "feature": "age_diff",
           "op": "<=",
           "threshold": -1.5,
           "exit_class": 1,
-          "support": 0.075,
-          "purity": 1
+          "support": 0,
+          "purity": 0.5
         },
         {
           "feature": "years_waiting_diff",
@@ -775,7 +787,8 @@
         "prior_transplants_diff",
         "urgency_score_diff"
       ],
-      "max_depth": 4
+      "max_depth": 4,
+      "near_tie_threshold": 4
     }
   },
   "dd": {
