@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "STREAMLIT_SERVER_PORT=${PORT:-8080} streamlit run app.py --server.address=0.0.0.0 --server.headless=true --server.enableCORS=false --server.enableXsrfProtection=false"]
+CMD ["sh", "-c", "unset STREAMLIT_SERVER_PORT && streamlit run app.py --server.port=${PORT:-8080} --server.address=0.0.0.0 --server.headless=true --server.enableCORS=false --server.enableXsrfProtection=false"]
