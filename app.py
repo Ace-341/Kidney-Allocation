@@ -6,7 +6,6 @@ Run:  streamlit run app.py
 """
 
 import streamlit as st
-import streamlit.components.v1 as _stc
 import pandas as pd
 import json
 import os
@@ -16,9 +15,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from fft_model import train_fft, summarize_model_changes
+from fft_model import train_fft, summarize_model_changes, explain_thinking_evolution_llm
 from fft_viz import fft_viz
-from fft_component import fft_svg, fft_svg_explained, DEFAULT_FFT_PALETTE
+from fft_component import fft_svg_explained, DEFAULT_FFT_PALETTE, PARAM_DIRECTION_LABELS
 
 st.set_page_config(
     page_title="Organ Allocation Preference Study",
@@ -55,173 +54,6 @@ COLORS = {
     "warning_soft":   "#fffbeb",
 }
 
-# ── FFT Editor Feature Tour ───────────────────────────────────────────────────
-TUTORIAL_STEPS = [
-    {
-        "icon": "👋",
-        "title": "Welcome to the FFT Editor",
-        "desc": (
-            "This quick tour covers all the editing tools. Your preference model is a "
-            "Fast-and-Frugal Tree — a compact set of rules that captures how you make "
-            "decisions. Let's walk through what you can do here."
-        ),
-        "target": None,
-    },
-    {
-        "icon": "📋",
-        "title": "Your Decision Steps",
-        "desc": (
-            "Each row is one check the tree applies — in order from top to bottom. "
-            "The tree tests each rule until one fires and sets the outcome. "
-            "The highlighted card below shows all your current steps."
-        ),
-        "target": "steps_panel",
-    },
-    {
-        "icon": "🎯",
-        "title": "Choosing a Factor",
-        "desc": (
-            "The first dropdown in each step sets which difference to compare — e.g., "
-            "Age difference or Years Waiting difference. This is the variable the tree "
-            "checks at this step."
-        ),
-        "target": "feature_select",
-    },
-    {
-        "icon": "⚖️",
-        "title": "The Comparison Rule",
-        "desc": (
-            "The operator (≥ or ≤) and the number set the threshold. "
-            "Example: 'Age Δ ≥ 5' means 'if Patient A is 5 or more years older than B, "
-            "apply this step's outcome'."
-        ),
-        "target": "threshold",
-    },
-    {
-        "icon": "✅",
-        "title": "The Outcome",
-        "desc": (
-            "The last dropdown in each step sets what the tree recommends when the "
-            "condition is met — Prefer A or Prefer B. This is the decision the tree "
-            "makes when the rule fires."
-        ),
-        "target": "outcome",
-    },
-    {
-        "icon": "↕️",
-        "title": "Reorder & Delete Steps",
-        "desc": (
-            "Use ↑ and ↓ to change the order steps are checked — the first rule that "
-            "fires wins, so order matters. Use ✕ to remove a step entirely. "
-            "You must keep at least one step."
-        ),
-        "target": "reorder",
-    },
-    {
-        "icon": "➕",
-        "title": "Adding a New Step",
-        "desc": (
-            "Click '＋ Add decision step' at the top to insert a new criterion. "
-            "Each feature can only appear once. New steps are added at the bottom "
-            "and can be reordered with the arrows."
-        ),
-        "target": "add_button",
-    },
-    {
-        "icon": "🔍",
-        "title": "Tie-Breakers",
-        "desc": (
-            "A tie-breaker fires when two patients are very close on a step's factor. "
-            "Click '＋ Add tie-breaker →' under any step to add a secondary check "
-            "that resolves near-ties without moving to the next main step."
-        ),
-        "target": "tiebreaker",
-    },
-    {
-        "icon": "🏁",
-        "title": "Default Preference",
-        "desc": (
-            "If no step's condition is met (all values fall between thresholds), "
-            "the DEFAULT preference applies. Set it to whichever patient you'd generally "
-            "prefer when you truly can't decide from the steps above."
-        ),
-        "target": "default",
-    },
-    {
-        "icon": "✨",
-        "title": "Apply Changes & Live Preview",
-        "desc": (
-            "When you're satisfied, click '✓ Apply changes' to save your edits. "
-            "The live preview just below the button shows your tree updating in "
-            "real time as you make changes — no need to apply just to see."
-        ),
-        "target": "apply",
-    },
-]
-
-_TUT_IND_STYLE = (
-    "background:#fef3c7;border-left:3px solid #f59e0b;padding:5px 10px;"
-    "border-radius:0 6px 6px 0;font-size:12px;color:#92400e;margin-bottom:8px;"
-)
-_TUT_CARD_TARGETS = {
-    "steps_panel", "feature_select", "threshold",
-    "outcome", "reorder", "tiebreaker", "default",
-}
-
-
-def _render_fft_tutorial_card(step_idx: int) -> None:
-    step  = TUTORIAL_STEPS[step_idx]
-    total = len(TUTORIAL_STEPS)
-    dots  = "".join(
-        (
-            "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;"
-            "background:#f59e0b;margin:0 3px'></span>"
-        ) if i == step_idx else (
-            "<span style='display:inline-block;width:6px;height:6px;border-radius:50%;"
-            "background:#e2e8f0;margin:0 3px;vertical-align:1px'></span>"
-        )
-        for i in range(total)
-    )
-    st.markdown(
-        f"<div style='background:#fffbeb;border:1.5px solid #f59e0b;"
-        f"border-left:4px solid #f59e0b;border-radius:12px;padding:18px 20px 14px;"
-        f"margin-bottom:16px'>"
-        f"<div style='display:flex;align-items:flex-start;gap:12px'>"
-        f"<div style='font-size:26px;line-height:1'>{step['icon']}</div>"
-        f"<div style='flex:1'>"
-        f"<div style='font-size:11px;font-weight:600;letter-spacing:.06em;color:#b45309;"
-        f"text-transform:uppercase;margin-bottom:4px'>"
-        f"Feature Tour · Step {step_idx + 1} of {total}</div>"
-        f"<div style='font-size:16px;font-weight:600;color:#0f172a;margin-bottom:6px'>"
-        f"{step['title']}</div>"
-        f"<div style='font-size:14px;color:#475569;line-height:1.6'>{step['desc']}</div>"
-        f"</div></div>"
-        f"<div style='margin-top:12px'>{dots}</div>"
-        f"</div>",
-        unsafe_allow_html=True,
-    )
-    nc1, nc2, nc3 = st.columns([1.3, 1.3, 1.3])
-    with nc1:
-        if step_idx > 0:
-            if st.button("← Prev", key="tut_prev", use_container_width=True):
-                st.session_state.fft_tutorial_step -= 1
-                st.rerun()
-    with nc2:
-        if step_idx < total - 1:
-            if st.button("Next →", key="tut_next", type="primary", use_container_width=True):
-                st.session_state.fft_tutorial_step += 1
-                st.rerun()
-        else:
-            if st.button("Done ✓", key="tut_done", type="primary", use_container_width=True):
-                st.session_state.fft_tutorial_active = False
-                st.rerun()
-    with nc3:
-        if step_idx < total - 1:
-            if st.button("Skip tour ×", key="tut_skip", use_container_width=True):
-                st.session_state.fft_tutorial_active = False
-                st.rerun()
-
-
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
@@ -240,9 +72,9 @@ html, body, .stApp {{ background-color: {COLORS["bg"]} !important; }}
 .main .block-container {{
   padding-top: 2.25rem !important;
   padding-bottom: 3rem !important;
-  padding-left: 3rem !important;
-  padding-right: 3rem !important;
-  max-width: 1400px !important;
+  padding-left: 2.5rem !important;
+  padding-right: 2.5rem !important;
+  max-width: 1100px !important;
 }}
 
 /* Base font */
@@ -255,7 +87,7 @@ html, body, [class*="css"] {{
 /* Headings */
 h1 {{ font-size: 2rem !important;   font-weight: 700 !important; line-height: 1.2 !important; color: {COLORS["text"]} !important; letter-spacing: -0.01em; }}
 h2 {{ font-size: 1.5rem !important; font-weight: 600 !important; line-height: 1.3 !important; color: {COLORS["text"]} !important; letter-spacing: -0.01em; }}
-h3 {{ font-size: 1.1rem !important; font-weight: 600 !important; line-height: 1.4 !important; color: {COLORS["text"]} !important; }}
+h3 {{ font-size: 1.25rem !important; font-weight: 600 !important; line-height: 1.4 !important; color: {COLORS["text"]} !important; }}
 
 /* Paragraph & list text */
 .stMarkdown p  {{ font-size: 16px !important; line-height: 1.7 !important; color: {COLORS["text"]}; }}
@@ -361,7 +193,7 @@ hr {{ border: none !important; border-top: 1px solid {COLORS["border"]} !importa
 
 /* Small uppercase eyebrow label */
 .eyebrow {{
-  font-size: 12px;
+  font-size: 13px;
   color: {COLORS["text_muted"]};
   text-transform: uppercase;
   letter-spacing: .08em;
@@ -385,19 +217,13 @@ PARAM_DESCRIPTIONS = {
     "urgency_score":     "Medical urgency level — how critical their need is (scale 1–10).",
 }
 
-def _pretty_feature_label(feature):
-    """'urgency_score_diff' -> 'Urgency Score'."""
-    base = feature[:-5] if feature.endswith("_diff") else feature
-    return base.replace("_", " ").title()
-
-
 def _clear_edit_widget_state():
-    """Clear per-node widget keys so they reinitialise from the new pending_tree."""
     for j in range(20):
         for key in (f"feat_{j}", f"op_{j}", f"thr_{j}", f"cls_{j}",
-                    f"refine_feat_{j}", f"refine_op_{j}", f"refine_thr_{j}", f"refine_pref_{j}"):
+                    f"rf_{j}", f"rop_{j}", f"rthr_{j}", f"rpref_{j}"):
             st.session_state.pop(key, None)
     st.session_state.pop("def_cls", None)
+
 
 # ── Session state ─────────────────────────────────────────────────────────────
 for k, v in {
@@ -411,14 +237,12 @@ for k, v in {
     "wants_edit":      None,
     "_saved_msg":      False,
     "pending_tree":         None,
-    "fft_tutorial_active":  False,
-    "fft_tutorial_step":    0,
-    "fft_tutorial_seen":    False,
     # Part 2 — the 20-question follow-up survey
     "survey_scenarios":       [],
     "survey_index":           0,
     "survey_decisions":       [],
     "survey_alignment_score": None,
+
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -514,6 +338,35 @@ def save_fft_override(username, tree_dict):
 def load_fft_override(username):
     return load_users().get(username, {}).get("fft_override")
 
+def migrate_fft_override(username):
+    """Convert any legacy override tree (exit_class only) to the new use_abs format."""
+    override = load_fft_override(username)
+    if not override:
+        return
+    changed = False
+    for node in override.get("nodes", []):
+        if node.get("use_abs"):
+            continue
+        op  = node.get("op", ">=")
+        thr = float(node.get("threshold", 0))
+        ec  = int(node.get("exit_class", 1))
+        if op == ">=" and thr > 0:
+            ph = (ec == 1)
+        elif op == "<=" and thr < 0:
+            ph = (ec == 0)
+        elif op == ">=" and thr <= 0:
+            ph = (ec == 1)
+        else:
+            ph = (ec == 0)
+        node["use_abs"]       = True
+        node["prefer_higher"] = ph
+        node["op"]            = ">="
+        node["threshold"]     = abs(thr)
+        changed = True
+    if changed:
+        save_fft_override(username, override)
+        train_fft_cached.clear()
+
 def record_decision(choice):
     os.makedirs(RESPONSES_DIR, exist_ok=True)
     idx = st.session_state.sc_index
@@ -582,8 +435,8 @@ def render_pairwise_choice_page(scenarios, idx, n_total, qparams, heading,
     with qcol:
         st.progress(idx / n_total)
         st.markdown(
-            f"<div style='color:{COLORS['text_muted']};font-size:13px;font-weight:500;"
-            f"margin-top:8px;margin-bottom:26px'>Scenario {idx + 1} of {n_total}</div>",
+            f"<div style='color:{COLORS['text_muted']};font-size:15px;font-weight:500;"
+            f"margin-top:12px;margin-bottom:26px'>Scenario {idx + 1} of {n_total}</div>",
             unsafe_allow_html=True,
         )
         st.markdown(f"## {heading}")
@@ -604,9 +457,9 @@ def render_pairwise_choice_page(scenarios, idx, n_total, qparams, heading,
             with col:
                 st.markdown(
                     f"<div style='background:{soft};border-radius:12px;"
-                    f"border-left:4px solid {color};padding:18px 20px 20px 18px'>"
+                    f"border-left:4px solid {color};padding:24px 24px 26px 22px'>"
                     f"<div style='color:{color};font-weight:700;font-size:15px;"
-                    f"letter-spacing:.04em;text-transform:uppercase;margin-bottom:18px'>"
+                    f"letter-spacing:.04em;text-transform:uppercase;margin-bottom:24px'>"
                     f"{label}</div>",
                     unsafe_allow_html=True,
                 )
@@ -614,9 +467,9 @@ def render_pairwise_choice_page(scenarios, idx, n_total, qparams, heading,
                     pname = p.replace("_", " ").title()
                     val   = data[p]
                     st.markdown(
-                        f"<div style='margin-bottom:14px'>"
-                        f"<div style='font-size:11.5px;color:{COLORS['text_secondary']};"
-                        f"text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px'>"
+                        f"<div style='margin-bottom:18px'>"
+                        f"<div style='font-size:14px;color:{COLORS['text_secondary']};"
+                        f"text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px'>"
                         f"{pname}</div>"
                         f"<div style='font-size:32px;font-weight:600;font-family:monospace;"
                         f"line-height:1.15;color:{COLORS['text']}'>{val:g}</div>"
@@ -625,7 +478,7 @@ def render_pairwise_choice_page(scenarios, idx, n_total, qparams, heading,
                     )
                 st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:32px'></div>", unsafe_allow_html=True)
         btn_a, btn_b = st.columns(2)
         with btn_a:
             if st.button("Choose Patient A", use_container_width=True,
@@ -665,7 +518,7 @@ if st.session_state.page == "login":
         )
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-        st.markdown("<div class='content-card'>", unsafe_allow_html=True)
+        #st.markdown("<div class='content-card'>", unsafe_allow_html=True)
         lp = st.session_state.params
         gc1, gc2 = st.columns(2, gap="large")
         for i, p in enumerate(lp):
@@ -766,6 +619,7 @@ elif st.session_state.page == "survey_questionnaire":
 # PAGE: RESULTS
 # ═══════════════════════════════════════════════════════════════════════════════
 elif st.session_state.page == "results":
+    migrate_fft_override(st.session_state.username)
     rparams   = st.session_state.params
     decisions = [d for d in st.session_state.decisions if d.get("choice") in ("A", "B")]
 
@@ -803,7 +657,7 @@ elif st.session_state.page == "results":
     editing    = (st.session_state.wants_edit is True)
 
     # ── Two-column layout: visualization left, feedback right ─────────────────
-    col_viz, col_fb = st.columns([5, 3], gap="large")
+    col_viz, col_fb = st.columns([5, 2.5], gap="large")
 
     # ── LEFT: heading + FFT ───────────────────────────────────────────────────
     with col_viz:
@@ -815,351 +669,35 @@ elif st.session_state.page == "results":
             unsafe_allow_html=True,
         )
 
-        # When editing, use pending_tree if one exists (carries added nodes)
         if editing:
             if st.session_state.pending_tree is None:
-                st.session_state.pending_tree = {
-                    **rtree_dict,
-                    "nodes": list(rtree_dict["nodes"]),
-                }
-            working_tree = st.session_state.pending_tree
-        else:
-            working_tree = rtree_dict
-            st.session_state.pending_tree = None   # clear when not editing
-
-        if editing:
-            # ── Single unified editing UI — all controls in one place ─────────
-
-            # Auto-show tutorial on first entry into editing mode
-            if not st.session_state.fft_tutorial_seen:
-                st.session_state.fft_tutorial_active = True
-                st.session_state.fft_tutorial_seen   = True
-
-            tut_active = st.session_state.fft_tutorial_active
-            tut_step   = st.session_state.fft_tutorial_step
-            tut_target = TUTORIAL_STEPS[tut_step]["target"] if tut_active else None
-
-            if tut_active:
-                _render_fft_tutorial_card(tut_step)
-                st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-
-            wt = st.session_state.pending_tree
-            feat_options = [p + "_diff" for p in rparams] or ["age_diff"]
-
-            # Add-step indicator (tutorial step 6)
-            if tut_active and tut_target == "add_button":
-                st.markdown(
-                    f"<div style='{_TUT_IND_STYLE}'>👇 Tour: click the button below to add a new decision step</div>",
-                    unsafe_allow_html=True,
-                )
-
-            _add_col, _tour_col = st.columns([4, 1])
-            with _add_col:
-                if st.button("＋  Add decision step", key="add_step", use_container_width=True):
-                    used = {n["feature"] for n in wt["nodes"]}
-                    feat = next(
-                        (p + "_diff" for p in rparams if p + "_diff" not in used),
-                        rparams[0] + "_diff" if rparams else "age_diff",
-                    )
-                    st.session_state.pending_tree = {
-                        **wt, "nodes": wt["nodes"] + [{
-                            "feature": feat, "op": ">=", "threshold": 0.0,
-                            "exit_class": 1, "support": 0.0, "purity": 0.5,
-                        }],
-                    }
-                    _clear_edit_widget_state()
-                    st.rerun()
-            with _tour_col:
-                if not tut_active:
-                    if st.button("? Tour", key="tut_relaunch", use_container_width=True):
-                        st.session_state.fft_tutorial_active = True
-                        st.session_state.fft_tutorial_step   = 0
-                        st.rerun()
-
-            st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
-            st.markdown("**Edit decision steps**")
-            _card_hl = (
-                "border:2px solid #f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,.15);"
-                if (tut_active and tut_target in _TUT_CARD_TARGETS) else ""
+                st.session_state.pending_tree = {**rtree_dict, "nodes": list(rtree_dict["nodes"])}
+            edited = fft_viz(
+                tree=st.session_state.pending_tree,
+                editing=True,
+                params=rparams,
+                labels=PARAM_DIRECTION_LABELS,
+                key="fft_edit",
             )
-            st.markdown(f"<div class='content-card' style='{_card_hl}'>", unsafe_allow_html=True)
-
-            # Top-of-card callout: one clear banner for every in-card tutorial step
-            _CARD_CALLOUTS = {
-                "steps_panel":    ("📋", "This card shows all your <b>decision steps</b> — each row below is one rule the tree checks, in order from top to bottom."),
-                "feature_select": ("🎯", "Look at the <b>Factor</b> badge on the first dropdown of Step 1 — that's the factor selector. It appears in every step row."),
-                "threshold":      ("⚖️", "Look at the <b>Op</b> and <b>Value</b> badges in each step — the operator (≥ / ≤) and threshold number define the comparison."),
-                "outcome":        ("✅", "Look at the <b>Outcome</b> badge on the last dropdown of Step 1 — that decides who to prefer when the rule fires."),
-                "reorder":        ("↕️", "Look at the <b>↓</b> and <b>✕</b> badges in STEP 1's header — ↑ appears on non-first steps. Use them to reorder or delete steps."),
-                "tiebreaker":     ("🔍", "Look below each step for the <b>tie-breaker row</b> (dashed box below). Click '＋ Add tie-breaker →' to add one, or edit an existing one."),
-                "default":        ("🏁", "The <b>DEFAULT</b> section is at the very bottom of this card — scroll down to see it. It sets the fallback preference when no step fires."),
-            }
-            if tut_active and tut_target in _CARD_CALLOUTS:
-                _c_icon, _c_msg = _CARD_CALLOUTS[tut_target]
-                st.markdown(
-                    f"<div style='background:#fef3c7;border:1.5px solid #f59e0b;border-radius:8px;"
-                    f"padding:10px 14px;margin-bottom:14px;font-size:13px;color:#92400e;line-height:1.5'>"
-                    f"<span style='font-size:16px'>{_c_icon}</span>&nbsp;&nbsp;{_c_msg}</div>",
-                    unsafe_allow_html=True,
-                )
-
-            # Amber badge style injected inside column containers to pinpoint widgets
-            _TUT_BADGE = (
-                "background:#f59e0b;border-radius:4px;padding:1px 6px;"
-                "font-size:10px;font-weight:700;color:#fff;"
-                "display:block;margin-bottom:4px;text-align:center;"
-            )
-
-            new_nodes = list(wt["nodes"])
-            for i, node in enumerate(new_nodes):
-                if i > 0:
-                    st.markdown(
-                        f"<div style='border-top:1px solid {COLORS['border']};margin:12px 0'></div>",
-                        unsafe_allow_html=True,
-                    )
-
-                # Step label + reorder + delete
-                hc1, hc2, hc3, hc4 = st.columns([4.5, 0.65, 0.65, 0.65])
-                with hc1:
-                    st.markdown(
-                        f"<div style='font-size:11.5px;font-weight:600;letter-spacing:.08em;"
-                        f"color:{COLORS['text_muted']};padding-top:8px'>STEP {i + 1}</div>",
-                        unsafe_allow_html=True,
-                    )
-                with hc2:
-                    # ↑ badge only when the button actually exists (i > 0)
-                    if tut_active and tut_target == "reorder" and i == 0 and i > 0:
-                        st.markdown(f"<div style='{_TUT_BADGE}'>↑</div>", unsafe_allow_html=True)
-                    if i > 0 and st.button("↑", key=f"up_{i}", use_container_width=True):
-                        new_nodes[i], new_nodes[i - 1] = new_nodes[i - 1], new_nodes[i]
-                        st.session_state.pending_tree = {**wt, "nodes": new_nodes}
-                        _clear_edit_widget_state()
-                        st.rerun()
-                with hc3:
-                    # ↓ badge only when the button actually exists (not the last node)
-                    if tut_active and tut_target == "reorder" and i == 0 and len(new_nodes) > 1:
-                        st.markdown(f"<div style='{_TUT_BADGE}'>↓</div>", unsafe_allow_html=True)
-                    if i < len(new_nodes) - 1 and st.button("↓", key=f"dn_{i}", use_container_width=True):
-                        new_nodes[i], new_nodes[i + 1] = new_nodes[i + 1], new_nodes[i]
-                        st.session_state.pending_tree = {**wt, "nodes": new_nodes}
-                        _clear_edit_widget_state()
-                        st.rerun()
-                with hc4:
-                    # ✕ badge only when the button actually exists (more than one step)
-                    if tut_active and tut_target == "reorder" and i == 0 and len(new_nodes) > 1:
-                        st.markdown(f"<div style='{_TUT_BADGE}'>✕</div>", unsafe_allow_html=True)
-                    if len(new_nodes) > 1 and st.button("✕", key=f"del_{i}", use_container_width=True):
-                        new_nodes.pop(i)
-                        st.session_state.pending_tree = {**wt, "nodes": new_nodes}
-                        _clear_edit_widget_state()
-                        st.rerun()
-
-                # Feature | Op | Threshold | Outcome — badges inside each column for steps 2-4
-                ec1, ec2, ec3, ec4 = st.columns([3, 1, 1.5, 1.5])
-                with ec1:
-                    if tut_active and tut_target == "feature_select" and i == 0:
-                        st.markdown(f"<div style='{_TUT_BADGE}'>Factor</div>", unsafe_allow_html=True)
-                    new_feat = st.selectbox(
-                        "Factor", feat_options,
-                        index=feat_options.index(node["feature"]) if node["feature"] in feat_options else 0,
-                        key=f"feat_{i}", label_visibility="collapsed",
-                        format_func=_pretty_feature_label,
-                    )
-                with ec2:
-                    if tut_active and tut_target == "threshold" and i == 0:
-                        st.markdown(f"<div style='{_TUT_BADGE}'>Op</div>", unsafe_allow_html=True)
-                    new_op = st.selectbox(
-                        "Op", [">=", "<="], index=0 if node["op"] == ">=" else 1,
-                        key=f"op_{i}", label_visibility="collapsed",
-                    )
-                with ec3:
-                    if tut_active and tut_target == "threshold" and i == 0:
-                        st.markdown(f"<div style='{_TUT_BADGE}'>Value</div>", unsafe_allow_html=True)
-                    new_thr = st.number_input(
-                        "Threshold", value=float(node["threshold"]), step=0.5,
-                        key=f"thr_{i}", label_visibility="collapsed",
-                    )
-                with ec4:
-                    if tut_active and tut_target == "outcome" and i == 0:
-                        st.markdown(f"<div style='{_TUT_BADGE}'>Outcome</div>", unsafe_allow_html=True)
-                    new_cls = st.selectbox(
-                        "Outcome", ["→ Prefer A", "→ Prefer B"],
-                        index=0 if node["exit_class"] == 1 else 1,
-                        key=f"cls_{i}", label_visibility="collapsed",
-                    )
-
-                updated_node = {
-                    **node,
-                    "feature":    new_feat,
-                    "op":         new_op,
-                    "threshold":  float(new_thr),
-                    "exit_class": 1 if new_cls == "→ Prefer A" else 0,
-                }
-
-                # Tie-breaker indicator — shown once, for first node only
-                if i == 0 and tut_active and tut_target == "tiebreaker":
-                    _tb_action = (
-                        "this step already has one — edit the controls below"
-                        if node.get("refine")
-                        else "click '＋ Add tie-breaker →' below to add a secondary check"
-                    )
-                    st.markdown(
-                        f"<div style='background:#fef3c7;border:1.5px dashed #f59e0b;border-radius:6px;"
-                        f"padding:6px 10px;margin:8px 0 4px;font-size:12px;color:#92400e'>"
-                        f"🔍 &nbsp;Tie-breaker area ↓ — {_tb_action}</div>",
-                        unsafe_allow_html=True,
-                    )
-
-                # Tie-breaker (refine) editing
-                if node.get("refine"):
-                    r = node["refine"]
-                    st.markdown(
-                        f"<div style='color:{COLORS['text_muted']};font-size:12px;"
-                        f"margin:8px 0 4px'>If close on this step, check —</div>",
-                        unsafe_allow_html=True,
-                    )
-                    rc1, rc2, rc3, rc4, rc5 = st.columns([2.5, 0.85, 1.3, 1.6, 1])
-                    with rc1:
-                        r_feat = st.selectbox(
-                            "Factor", feat_options,
-                            index=feat_options.index(r["feature"]) if r["feature"] in feat_options else 0,
-                            key=f"refine_feat_{i}", label_visibility="collapsed",
-                            format_func=_pretty_feature_label,
-                        )
-                    with rc2:
-                        r_op = st.selectbox(
-                            "Op", [">=", "<="], index=0 if r["op"] == ">=" else 1,
-                            key=f"refine_op_{i}", label_visibility="collapsed",
-                        )
-                    with rc3:
-                        r_thr = st.number_input(
-                            "Threshold", value=float(r["threshold"]), step=0.5,
-                            key=f"refine_thr_{i}", label_visibility="collapsed",
-                        )
-                    with rc4:
-                        r_pref = st.selectbox(
-                            "If true", ["Prefer A", "Prefer B"],
-                            index=0 if r["true_class"] == 1 else 1,
-                            key=f"refine_pref_{i}", label_visibility="collapsed",
-                        )
-                    with rc5:
-                        if st.button("Remove", key=f"rm_refine_{i}", use_container_width=True):
-                            updated_node = {k: v for k, v in updated_node.items() if k != "refine"}
-                            new_nodes[i] = updated_node
-                            st.session_state.pending_tree = {**wt, "nodes": new_nodes}
-                            st.rerun()
-                    updated_node["refine"] = {
-                        **r,
-                        "feature":     r_feat,
-                        "op":          r_op,
-                        "threshold":   float(r_thr),
-                        "true_class":  1 if r_pref == "Prefer A" else 0,
-                        "false_class": 0 if r_pref == "Prefer A" else 1,
-                    }
-                else:
-                    if st.button("＋ Add tie-breaker →", key=f"add_refine_{i}"):
-                        used_feats = {node["feature"]}
-                        r_feat_new = next((f for f in feat_options if f not in used_feats), feat_options[0])
-                        updated_node["refine"] = {
-                            "feature": r_feat_new, "op": ">=", "threshold": 0.0,
-                            "true_class": 1, "false_class": 0,
-                            "support": 0.0, "false_support": 0.0,
-                            "purity": 0.5, "false_purity": 0.5,
-                            "manual": True,
-                        }
-                        new_nodes[i] = updated_node
-                        st.session_state.pending_tree = {**wt, "nodes": new_nodes}
-                        st.rerun()
-
-                new_nodes[i] = updated_node
-
-            # Default class indicator (tutorial step 8) — also auto-scrolls to it
-            if tut_active and tut_target == "default":
-                st.markdown(
-                    f"<div style='{_TUT_IND_STYLE}'>👇 Tour: the DEFAULT fallback preference is right below — applied when no step fires</div>",
-                    unsafe_allow_html=True,
-                )
-                _stc.html(
-                    "<script>"
-                    "var els=parent.document.querySelectorAll('div,p,span');"
-                    "for(var e of els){"
-                    "  if(e.childElementCount===0&&e.textContent.trim()==='DEFAULT — if no step applies'){"
-                    "    e.scrollIntoView({behavior:'smooth',block:'center'});break;"
-                    "  }}"
-                    "</script>",
-                    height=0,
-                    scrolling=False,
-                )
-
-            # Default class
-            st.markdown(
-                f"<div style='border-top:1px solid {COLORS['border']};margin:14px 0 8px'></div>",
-                unsafe_allow_html=True,
-            )
-            st.markdown(
-                f"<div style='font-size:11.5px;font-weight:600;letter-spacing:.08em;"
-                f"color:{COLORS['text_muted']};margin-bottom:8px'>DEFAULT — if no step applies</div>",
-                unsafe_allow_html=True,
-            )
-            new_def_cls = st.selectbox(
-                "Default outcome", ["→ Prefer A", "→ Prefer B"],
-                index=0 if wt.get("default_class", 0) == 1 else 1,
-                key="def_cls", label_visibility="collapsed",
-            )
-            st.markdown("</div>", unsafe_allow_html=True)
-
-            # Sync all widget values back to pending_tree
-            updated_tree = {
-                **wt,
-                "nodes":         new_nodes,
-                "default_class": 1 if new_def_cls == "→ Prefer A" else 0,
-            }
-            if updated_tree != wt:
-                st.session_state.pending_tree = updated_tree
-
-            # Apply + preview indicator (tutorial step 9)
-            if tut_active and tut_target == "apply":
-                st.markdown(
-                    f"<div style='{_TUT_IND_STYLE}'>👇 Tour: click Apply to save — or just watch the live preview update below as you edit</div>",
-                    unsafe_allow_html=True,
-                )
-
-            st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
-            if st.button("✓  Apply changes", type="primary", key="apply_native", use_container_width=True):
-                save_fft_override(st.session_state.username, st.session_state.pending_tree)
+            if edited is not None:
+                save_fft_override(st.session_state.username, edited)
                 train_fft_cached.clear()
                 st.session_state.wants_edit   = None
                 st.session_state.pending_tree = None
                 st.session_state._saved_msg   = True
-                _clear_edit_widget_state()
                 st.rerun()
-
-            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-            st.caption("Live preview of your changes (including tie-breakers):")
-            preview_svg = fft_svg(st.session_state.pending_tree, DEFAULT_FFT_PALETTE)
-            st.markdown(preview_svg, unsafe_allow_html=True)
-            st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
-
         else:
-            fft_viz(tree=working_tree, editing=False, params=rparams, key="fft_main")
-
-        if st.session_state.get("_saved_msg", False):
-            st.success("Changes saved. The model now reflects your edits.")
-            st.session_state._saved_msg = False
-
-        # Plain-English view: same tree as above, but every step is captioned
-        # in simple language, close calls get their own tie-breaker box, and
-        # there's a short summary of what the participant seems to value.
-        # Always shows the last *trained* tree (rtree_dict), not an in-progress
-        # edit, since explanations are only generated at training time.
-        with st.expander("💬 Explain this model simply", expanded=not editing):
-            explained_svg = fft_svg_explained(
+            st.session_state.pending_tree = None
+            st.markdown(fft_svg_explained(
                 tree=rtree_dict,
                 palette=DEFAULT_FFT_PALETTE,
                 node_explanations=fft_stats.get("node_explanations"),
                 summary_explanation=fft_stats.get("summary_explanation"),
-            )
-            st.markdown(explained_svg, unsafe_allow_html=True)
+            ), unsafe_allow_html=True)
+
+        if st.session_state.get("_saved_msg", False):
+            st.success("Changes saved. The model now reflects your edits.")
+            st.session_state._saved_msg = False
 
     # ── RIGHT: alignment rating + edit prompt ─────────────────────────────────
     with col_fb:
@@ -1167,7 +705,7 @@ elif st.session_state.page == "results":
 
         st.markdown("### How well does this match your thinking?")
         st.markdown(
-            f"<div style='color:{COLORS['text_secondary']};font-size:14px;margin-bottom:16px'>"
+            f"<div style='color:{COLORS['text_secondary']};font-size:15px;margin-bottom:16px'>"
             f"1 = not at all &nbsp;&nbsp;·&nbsp;&nbsp; 5 = perfectly</div>",
             unsafe_allow_html=True,
         )
@@ -1190,11 +728,11 @@ elif st.session_state.page == "results":
         # Editing status note
         if editing:
             st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
-            st.info("Editing mode is on. Make your changes on the left, then click **Apply changes**.")
+            st.info("Editing mode is on. Edit the tree on the left, then click **Apply changes**.")
 
         # Correction prompt — only after rating, only when not yet decided
         elif st.session_state.alignment_score is not None and st.session_state.wants_edit is None:
-            st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height:32px'></div>", unsafe_allow_html=True)
             st.markdown("---")
             st.markdown("### Want to correct anything?")
             cy, cn = st.columns(2)
@@ -1213,7 +751,7 @@ elif st.session_state.page == "results":
             st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
             st.success("Part 1 is done and saved.")
             st.markdown(
-                f"<div style='color:{COLORS['text_secondary']};font-size:14px;margin:10px 0 16px;"
+                f"<div style='color:{COLORS['text_secondary']};font-size:15px;margin:10px 0 16px;"
                 f"line-height:1.6'>One more thing — we'd like to show you 20 more scenarios, "
                 f"then ask once more whether the model still feels right.</div>",
                 unsafe_allow_html=True,
@@ -1270,7 +808,7 @@ elif st.session_state.page == "survey_results":
         if (part1_stats and not part1_error) else None
     )
 
-    _, mcol, _ = st.columns([1, 5, 1])
+    _, mcol, _ = st.columns([1, 4, 1])
     with mcol:
         st.markdown(f"<div class='eyebrow' style='margin-bottom:8px'>Part 2 · complete</div>",
                     unsafe_allow_html=True)
@@ -1283,25 +821,20 @@ elif st.session_state.page == "survey_results":
             unsafe_allow_html=True,
         )
 
-        # Read-only view — no re-editing in Part 2, keeps this a single final check.
-        fft_viz(tree=rtree_dict, editing=False, params=rparams, key="fft_survey")
-
-        with st.expander("💬 Explain this model simply", expanded=True):
-            explained_svg = fft_svg_explained(
-                tree=rtree_dict,
-                palette=DEFAULT_FFT_PALETTE,
-                node_explanations=fft_stats.get("node_explanations"),
-                summary_explanation=fft_stats.get("summary_explanation"),
-            )
-            st.markdown(explained_svg, unsafe_allow_html=True)
+        st.markdown(fft_svg_explained(
+            tree=rtree_dict,
+            palette=DEFAULT_FFT_PALETTE,
+            node_explanations=fft_stats.get("node_explanations"),
+            summary_explanation=fft_stats.get("summary_explanation"),
+        ), unsafe_allow_html=True)
 
         if review_text:
             st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
             st.markdown(
                 f"<div class='content-card'>"
-                f"<div style='font-size:14px;font-weight:600;color:{COLORS['text']};"
-                f"margin-bottom:6px'>📋 Model review — what changed since Part 1</div>"
-                f"<div style='font-size:14px;color:{COLORS['text_secondary']};line-height:1.6'>"
+                f"<div style='font-size:15px;font-weight:600;color:{COLORS['text']};"
+                f"margin-bottom:8px'>📋 Model review — what changed since Part 1</div>"
+                f"<div style='font-size:15px;color:{COLORS['text_secondary']};line-height:1.6'>"
                 f"{review_text}</div></div>",
                 unsafe_allow_html=True,
             )
@@ -1310,7 +843,7 @@ elif st.session_state.page == "survey_results":
         st.markdown("---")
         st.markdown("### After the extra scenarios, does this still feel right?")
         st.markdown(
-            f"<div style='color:{COLORS['text_secondary']};font-size:14px;margin-bottom:16px'>"
+            f"<div style='color:{COLORS['text_secondary']};font-size:15px;margin-bottom:16px'>"
             f"1 = not at all &nbsp;&nbsp;·&nbsp;&nbsp; 5 = perfectly</div>",
             unsafe_allow_html=True,
         )
@@ -1344,6 +877,29 @@ elif st.session_state.page == "survey_results":
             st.success("Thanks — your comments were saved.")
 
         if st.session_state.survey_alignment_score is not None:
+            # LLM thinking-shift paragraph — generated once and cached in users.json
+            ru = load_users()
+            cached_shift = ru.get(st.session_state.username, {}).get("thinking_shift_text")
+            if not cached_shift and part1_stats and not part1_error:
+                with st.spinner("Generating your thinking-shift summary…"):
+                    cached_shift = explain_thinking_evolution_llm(
+                        part1_stats["tree"], rtree_dict
+                    )
+                ru.setdefault(st.session_state.username, {})
+                ru[st.session_state.username]["thinking_shift_text"] = cached_shift
+                save_users(ru)
+
+            if cached_shift:
+                st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+                st.markdown(
+                    f"<div class='content-card'>"
+                    f"<div style='font-size:15px;font-weight:600;color:{COLORS['text']};"
+                    f"margin-bottom:8px'>🔄 How your thinking evolved</div>"
+                    f"<div style='font-size:15px;color:{COLORS['text_secondary']};line-height:1.6'>"
+                    f"{cached_shift}</div></div>",
+                    unsafe_allow_html=True,
+                )
+
             st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
             st.success(
                 "You've completed both parts of the study — thank you. "

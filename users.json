@@ -728,57 +728,87 @@
         "B_urgency_score": 10.0
       }
     ],
-    "alignment_score": 5,
+    "alignment_score": 1,
     "fft_override": {
       "nodes": [
         {
+          "feature": "age_diff",
+          "op": ">=",
+          "threshold": 1.5,
+          "exit_class": 1,
+          "support": 0.8,
+          "purity": 0.9375,
+          "use_abs": true,
+          "prefer_higher": false,
+          "refine": {
+            "feature": "dependents_diff",
+            "op": ">=",
+            "threshold": -1.5,
+            "true_class": 1,
+            "false_class": 0,
+            "support": 0.575,
+            "false_support": 0.225,
+            "purity": 0.6956521739130435,
+            "false_purity": 1
+          }
+        },
+        {
           "feature": "dependents_diff",
           "op": ">=",
-          "threshold": -1,
+          "threshold": 1,
           "exit_class": 1,
-          "support": 0.75,
-          "purity": 0.6666666666666666
+          "support": 0.05,
+          "purity": 1,
+          "use_abs": true,
+          "prefer_higher": true
         },
         {
           "feature": "urgency_score_diff",
-          "op": "<=",
+          "op": ">=",
           "threshold": 3.58,
           "exit_class": 0,
-          "support": 0.225,
+          "support": 0.05,
           "purity": 1,
+          "use_abs": true,
+          "prefer_higher": true,
           "refine": {
             "feature": "age_diff",
             "op": ">=",
             "threshold": 0,
             "true_class": 1,
             "false_class": 0,
-            "support": 0,
-            "false_support": 0,
-            "purity": 0.5,
-            "false_purity": 0.5,
+            "support": 0.025,
+            "false_support": 0.025,
+            "purity": 1,
+            "false_purity": 1,
             "manual": true
           }
-        },
-        {
-          "feature": "age_diff",
-          "op": "<=",
-          "threshold": -1.5,
-          "exit_class": 1,
-          "support": 0,
-          "purity": 0.5
         },
         {
           "feature": "years_waiting_diff",
           "op": ">=",
           "threshold": 0,
           "exit_class": 1,
-          "support": 0,
-          "purity": 0.5
+          "support": 0.1,
+          "purity": 0.75,
+          "use_abs": true,
+          "prefer_higher": true,
+          "refine": {
+            "feature": "health_score_diff",
+            "op": ">=",
+            "threshold": -2.5,
+            "true_class": 1,
+            "false_class": 0,
+            "support": 0.075,
+            "false_support": 0.025,
+            "purity": 0.6666666666666666,
+            "false_purity": 1
+          }
         }
       ],
       "default_class": 0,
-      "default_support": 0.025,
-      "default_purity": 1,
+      "default_support": 0,
+      "default_purity": 0.5,
       "feature_names": [
         "age_diff",
         "years_waiting_diff",
@@ -789,7 +819,735 @@
       ],
       "max_depth": 4,
       "near_tie_threshold": 4
-    }
+    },
+    "survey_scenarios": [
+      {
+        "A": {
+          "age": 56.0,
+          "years_waiting": 3.0,
+          "health_score": 7.0,
+          "dependents": 2.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 3.0
+        },
+        "B": {
+          "age": 56.0,
+          "years_waiting": 4.0,
+          "health_score": 4.0,
+          "dependents": 0.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 6.0
+        }
+      },
+      {
+        "A": {
+          "age": 64.0,
+          "years_waiting": 2.0,
+          "health_score": 5.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 10.0
+        },
+        "B": {
+          "age": 49.0,
+          "years_waiting": 7.0,
+          "health_score": 4.0,
+          "dependents": 4.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 7.0
+        }
+      },
+      {
+        "A": {
+          "age": 60.0,
+          "years_waiting": 10.0,
+          "health_score": 8.0,
+          "dependents": 0.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 8.0
+        },
+        "B": {
+          "age": 47.0,
+          "years_waiting": 8.0,
+          "health_score": 5.0,
+          "dependents": 0.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 7.0
+        }
+      },
+      {
+        "A": {
+          "age": 50.0,
+          "years_waiting": 8.0,
+          "health_score": 8.0,
+          "dependents": 0.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 7.0
+        },
+        "B": {
+          "age": 44.0,
+          "years_waiting": 6.0,
+          "health_score": 5.0,
+          "dependents": 4.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 9.0
+        }
+      },
+      {
+        "A": {
+          "age": 63.0,
+          "years_waiting": 11.0,
+          "health_score": 7.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 66.0,
+          "years_waiting": 5.0,
+          "health_score": 5.0,
+          "dependents": 2.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 8.0
+        }
+      },
+      {
+        "A": {
+          "age": 26.0,
+          "years_waiting": 2.0,
+          "health_score": 4.0,
+          "dependents": 1.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 3.0
+        },
+        "B": {
+          "age": 62.0,
+          "years_waiting": 5.0,
+          "health_score": 4.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 9.0
+        }
+      },
+      {
+        "A": {
+          "age": 57.0,
+          "years_waiting": 6.0,
+          "health_score": 5.0,
+          "dependents": 3.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 8.0
+        },
+        "B": {
+          "age": 53.0,
+          "years_waiting": 12.0,
+          "health_score": 6.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 6.0
+        }
+      },
+      {
+        "A": {
+          "age": 26.0,
+          "years_waiting": 2.0,
+          "health_score": 7.0,
+          "dependents": 0.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 9.0
+        },
+        "B": {
+          "age": 41.0,
+          "years_waiting": 7.0,
+          "health_score": 4.0,
+          "dependents": 4.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 5.0
+        }
+      },
+      {
+        "A": {
+          "age": 57.0,
+          "years_waiting": 7.0,
+          "health_score": 4.0,
+          "dependents": 3.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 8.0
+        },
+        "B": {
+          "age": 30.0,
+          "years_waiting": 4.0,
+          "health_score": 9.0,
+          "dependents": 0.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 9.0
+        }
+      },
+      {
+        "A": {
+          "age": 56.0,
+          "years_waiting": 10.0,
+          "health_score": 8.0,
+          "dependents": 0.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 7.0
+        },
+        "B": {
+          "age": 28.0,
+          "years_waiting": 3.0,
+          "health_score": 7.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 6.0
+        }
+      },
+      {
+        "A": {
+          "age": 58.0,
+          "years_waiting": 8.0,
+          "health_score": 8.0,
+          "dependents": 4.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 43.0,
+          "years_waiting": 12.0,
+          "health_score": 6.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 10.0
+        }
+      },
+      {
+        "A": {
+          "age": 40.0,
+          "years_waiting": 11.0,
+          "health_score": 7.0,
+          "dependents": 1.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 8.0
+        },
+        "B": {
+          "age": 41.0,
+          "years_waiting": 5.0,
+          "health_score": 8.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 4.0
+        }
+      },
+      {
+        "A": {
+          "age": 34.0,
+          "years_waiting": 1.0,
+          "health_score": 5.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 31.0,
+          "years_waiting": 2.0,
+          "health_score": 6.0,
+          "dependents": 3.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 5.0
+        }
+      },
+      {
+        "A": {
+          "age": 60.0,
+          "years_waiting": 8.0,
+          "health_score": 7.0,
+          "dependents": 4.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 40.0,
+          "years_waiting": 1.0,
+          "health_score": 9.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 4.0
+        }
+      },
+      {
+        "A": {
+          "age": 30.0,
+          "years_waiting": 2.0,
+          "health_score": 9.0,
+          "dependents": 1.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 4.0
+        },
+        "B": {
+          "age": 37.0,
+          "years_waiting": 4.0,
+          "health_score": 8.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 10.0
+        }
+      },
+      {
+        "A": {
+          "age": 68.0,
+          "years_waiting": 2.0,
+          "health_score": 5.0,
+          "dependents": 1.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 8.0
+        },
+        "B": {
+          "age": 49.0,
+          "years_waiting": 12.0,
+          "health_score": 4.0,
+          "dependents": 2.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 8.0
+        }
+      },
+      {
+        "A": {
+          "age": 36.0,
+          "years_waiting": 6.0,
+          "health_score": 9.0,
+          "dependents": 2.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 49.0,
+          "years_waiting": 2.0,
+          "health_score": 7.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 10.0
+        }
+      },
+      {
+        "A": {
+          "age": 35.0,
+          "years_waiting": 12.0,
+          "health_score": 6.0,
+          "dependents": 2.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 8.0
+        },
+        "B": {
+          "age": 31.0,
+          "years_waiting": 1.0,
+          "health_score": 4.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 5.0
+        }
+      },
+      {
+        "A": {
+          "age": 41.0,
+          "years_waiting": 11.0,
+          "health_score": 9.0,
+          "dependents": 4.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 4.0
+        },
+        "B": {
+          "age": 48.0,
+          "years_waiting": 4.0,
+          "health_score": 7.0,
+          "dependents": 2.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 9.0
+        }
+      },
+      {
+        "A": {
+          "age": 45.0,
+          "years_waiting": 5.0,
+          "health_score": 4.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 7.0
+        },
+        "B": {
+          "age": 56.0,
+          "years_waiting": 9.0,
+          "health_score": 5.0,
+          "dependents": 3.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 4.0
+        }
+      }
+    ],
+    "survey_index": 20,
+    "survey_decisions": [
+      {
+        "username": "Chitresh",
+        "scenario": 1,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:38:57.854735",
+        "A_age": 56.0,
+        "B_age": 56.0,
+        "A_years_waiting": 3.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 7.0,
+        "B_health_score": 4.0,
+        "A_dependents": 2.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 3.0,
+        "B_urgency_score": 6.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 2,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:38:58.235510",
+        "A_age": 64.0,
+        "B_age": 49.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 7.0,
+        "A_health_score": 5.0,
+        "B_health_score": 4.0,
+        "A_dependents": 2.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 10.0,
+        "B_urgency_score": 7.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 3,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:38:58.589839",
+        "A_age": 60.0,
+        "B_age": 47.0,
+        "A_years_waiting": 10.0,
+        "B_years_waiting": 8.0,
+        "A_health_score": 8.0,
+        "B_health_score": 5.0,
+        "A_dependents": 0.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 8.0,
+        "B_urgency_score": 7.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 4,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:38:58.974338",
+        "A_age": 50.0,
+        "B_age": 44.0,
+        "A_years_waiting": 8.0,
+        "B_years_waiting": 6.0,
+        "A_health_score": 8.0,
+        "B_health_score": 5.0,
+        "A_dependents": 0.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 5,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:38:59.322351",
+        "A_age": 63.0,
+        "B_age": 66.0,
+        "A_years_waiting": 11.0,
+        "B_years_waiting": 5.0,
+        "A_health_score": 7.0,
+        "B_health_score": 5.0,
+        "A_dependents": 3.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 8.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 6,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:38:59.534942",
+        "A_age": 26.0,
+        "B_age": 62.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 5.0,
+        "A_health_score": 4.0,
+        "B_health_score": 4.0,
+        "A_dependents": 1.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 3.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 7,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:38:59.716412",
+        "A_age": 57.0,
+        "B_age": 53.0,
+        "A_years_waiting": 6.0,
+        "B_years_waiting": 12.0,
+        "A_health_score": 5.0,
+        "B_health_score": 6.0,
+        "A_dependents": 3.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 8.0,
+        "B_urgency_score": 6.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 8,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:39:00.105221",
+        "A_age": 26.0,
+        "B_age": 41.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 7.0,
+        "A_health_score": 7.0,
+        "B_health_score": 4.0,
+        "A_dependents": 0.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 9.0,
+        "B_urgency_score": 5.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 9,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:39:00.318785",
+        "A_age": 57.0,
+        "B_age": 30.0,
+        "A_years_waiting": 7.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 4.0,
+        "B_health_score": 9.0,
+        "A_dependents": 3.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 8.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 10,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:39:00.499589",
+        "A_age": 56.0,
+        "B_age": 28.0,
+        "A_years_waiting": 10.0,
+        "B_years_waiting": 3.0,
+        "A_health_score": 8.0,
+        "B_health_score": 7.0,
+        "A_dependents": 0.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 6.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 11,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:39:00.666455",
+        "A_age": 58.0,
+        "B_age": 43.0,
+        "A_years_waiting": 8.0,
+        "B_years_waiting": 12.0,
+        "A_health_score": 8.0,
+        "B_health_score": 6.0,
+        "A_dependents": 4.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 10.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 12,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:39:00.851098",
+        "A_age": 40.0,
+        "B_age": 41.0,
+        "A_years_waiting": 11.0,
+        "B_years_waiting": 5.0,
+        "A_health_score": 7.0,
+        "B_health_score": 8.0,
+        "A_dependents": 1.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 8.0,
+        "B_urgency_score": 4.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 13,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:39:01.016981",
+        "A_age": 34.0,
+        "B_age": 31.0,
+        "A_years_waiting": 1.0,
+        "B_years_waiting": 2.0,
+        "A_health_score": 5.0,
+        "B_health_score": 6.0,
+        "A_dependents": 3.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 5.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 14,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:39:01.200532",
+        "A_age": 60.0,
+        "B_age": 40.0,
+        "A_years_waiting": 8.0,
+        "B_years_waiting": 1.0,
+        "A_health_score": 7.0,
+        "B_health_score": 9.0,
+        "A_dependents": 4.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 4.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 15,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:39:01.606643",
+        "A_age": 30.0,
+        "B_age": 37.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 9.0,
+        "B_health_score": 8.0,
+        "A_dependents": 1.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 4.0,
+        "B_urgency_score": 10.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 16,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:39:02.157636",
+        "A_age": 68.0,
+        "B_age": 49.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 12.0,
+        "A_health_score": 5.0,
+        "B_health_score": 4.0,
+        "A_dependents": 1.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 8.0,
+        "B_urgency_score": 8.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 17,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:39:02.541723",
+        "A_age": 36.0,
+        "B_age": 49.0,
+        "A_years_waiting": 6.0,
+        "B_years_waiting": 2.0,
+        "A_health_score": 9.0,
+        "B_health_score": 7.0,
+        "A_dependents": 2.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 10.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 18,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:39:02.715899",
+        "A_age": 35.0,
+        "B_age": 31.0,
+        "A_years_waiting": 12.0,
+        "B_years_waiting": 1.0,
+        "A_health_score": 6.0,
+        "B_health_score": 4.0,
+        "A_dependents": 2.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 8.0,
+        "B_urgency_score": 5.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 19,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:39:02.936017",
+        "A_age": 41.0,
+        "B_age": 48.0,
+        "A_years_waiting": 11.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 9.0,
+        "B_health_score": 7.0,
+        "A_dependents": 4.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 4.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "Chitresh",
+        "scenario": 20,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:39:03.319599",
+        "A_age": 45.0,
+        "B_age": 56.0,
+        "A_years_waiting": 5.0,
+        "B_years_waiting": 9.0,
+        "A_health_score": 4.0,
+        "B_health_score": 5.0,
+        "A_dependents": 3.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 4.0
+      }
+    ],
+    "survey_alignment_score": 4,
+    "thinking_shift_text": "Between Phase 1 and Phase 2 of the study, your decision pattern remained consistent, with the same key factors influencing your choices in the same order of importance. The additional scenarios presented in Phase 2 reinforced this pattern, rather than altering it in any significant way. This suggests a high degree of stability in your decision-making approach.",
+    "survey_comment": ""
   },
   "dd": {
     "sc_index": 20,
@@ -2368,7 +3126,1492 @@
         "B_urgency_score": 10.0
       }
     ],
-    "alignment_score": 4
+    "alignment_score": 4,
+    "fft_override": {
+      "nodes": [
+        {
+          "feature": "age_diff",
+          "op": "<=",
+          "threshold": -4.0,
+          "exit_class": 1,
+          "support": 0.275,
+          "purity": 1.0
+        },
+        {
+          "feature": "years_waiting_diff",
+          "op": "<=",
+          "threshold": 8.0,
+          "exit_class": 0,
+          "support": 0.65,
+          "purity": 0.7692307692307693
+        }
+      ],
+      "default_class": 1,
+      "default_support": 0.075,
+      "default_purity": 1.0,
+      "feature_names": [
+        "age_diff",
+        "years_waiting_diff",
+        "health_score_diff",
+        "dependents_diff",
+        "prior_transplants_diff",
+        "urgency_score_diff"
+      ],
+      "max_depth": 4,
+      "near_tie_threshold": 4.0
+    },
+    "survey_scenarios": [
+      {
+        "A": {
+          "age": 61.0,
+          "years_waiting": 4.0,
+          "health_score": 8.0,
+          "dependents": 4.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 7.0
+        },
+        "B": {
+          "age": 65.0,
+          "years_waiting": 2.0,
+          "health_score": 5.0,
+          "dependents": 1.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 5.0
+        }
+      },
+      {
+        "A": {
+          "age": 42.0,
+          "years_waiting": 1.0,
+          "health_score": 4.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 9.0
+        },
+        "B": {
+          "age": 59.0,
+          "years_waiting": 11.0,
+          "health_score": 5.0,
+          "dependents": 4.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 4.0
+        }
+      },
+      {
+        "A": {
+          "age": 49.0,
+          "years_waiting": 3.0,
+          "health_score": 4.0,
+          "dependents": 2.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 4.0
+        },
+        "B": {
+          "age": 30.0,
+          "years_waiting": 8.0,
+          "health_score": 5.0,
+          "dependents": 4.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 10.0
+        }
+      },
+      {
+        "A": {
+          "age": 33.0,
+          "years_waiting": 1.0,
+          "health_score": 9.0,
+          "dependents": 1.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 39.0,
+          "years_waiting": 11.0,
+          "health_score": 4.0,
+          "dependents": 4.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 4.0
+        }
+      },
+      {
+        "A": {
+          "age": 53.0,
+          "years_waiting": 5.0,
+          "health_score": 5.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 3.0
+        },
+        "B": {
+          "age": 32.0,
+          "years_waiting": 9.0,
+          "health_score": 7.0,
+          "dependents": 4.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 10.0
+        }
+      },
+      {
+        "A": {
+          "age": 32.0,
+          "years_waiting": 10.0,
+          "health_score": 9.0,
+          "dependents": 3.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 54.0,
+          "years_waiting": 4.0,
+          "health_score": 9.0,
+          "dependents": 0.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 4.0
+        }
+      },
+      {
+        "A": {
+          "age": 40.0,
+          "years_waiting": 5.0,
+          "health_score": 6.0,
+          "dependents": 2.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 6.0
+        },
+        "B": {
+          "age": 27.0,
+          "years_waiting": 3.0,
+          "health_score": 8.0,
+          "dependents": 0.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 6.0
+        }
+      },
+      {
+        "A": {
+          "age": 67.0,
+          "years_waiting": 2.0,
+          "health_score": 7.0,
+          "dependents": 0.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 10.0
+        },
+        "B": {
+          "age": 45.0,
+          "years_waiting": 4.0,
+          "health_score": 5.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 8.0
+        }
+      },
+      {
+        "A": {
+          "age": 47.0,
+          "years_waiting": 4.0,
+          "health_score": 7.0,
+          "dependents": 1.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 7.0
+        },
+        "B": {
+          "age": 26.0,
+          "years_waiting": 12.0,
+          "health_score": 5.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 4.0
+        }
+      },
+      {
+        "A": {
+          "age": 62.0,
+          "years_waiting": 4.0,
+          "health_score": 7.0,
+          "dependents": 4.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 6.0
+        },
+        "B": {
+          "age": 65.0,
+          "years_waiting": 2.0,
+          "health_score": 9.0,
+          "dependents": 1.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 5.0
+        }
+      },
+      {
+        "A": {
+          "age": 45.0,
+          "years_waiting": 6.0,
+          "health_score": 4.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 8.0
+        },
+        "B": {
+          "age": 62.0,
+          "years_waiting": 8.0,
+          "health_score": 8.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 10.0
+        }
+      },
+      {
+        "A": {
+          "age": 40.0,
+          "years_waiting": 1.0,
+          "health_score": 8.0,
+          "dependents": 0.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 30.0,
+          "years_waiting": 10.0,
+          "health_score": 8.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 4.0
+        }
+      },
+      {
+        "A": {
+          "age": 28.0,
+          "years_waiting": 8.0,
+          "health_score": 4.0,
+          "dependents": 4.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 4.0
+        },
+        "B": {
+          "age": 52.0,
+          "years_waiting": 6.0,
+          "health_score": 9.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 8.0
+        }
+      },
+      {
+        "A": {
+          "age": 41.0,
+          "years_waiting": 11.0,
+          "health_score": 6.0,
+          "dependents": 3.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 3.0
+        },
+        "B": {
+          "age": 33.0,
+          "years_waiting": 6.0,
+          "health_score": 7.0,
+          "dependents": 2.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 10.0
+        }
+      },
+      {
+        "A": {
+          "age": 37.0,
+          "years_waiting": 3.0,
+          "health_score": 6.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 28.0,
+          "years_waiting": 6.0,
+          "health_score": 8.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 8.0
+        }
+      },
+      {
+        "A": {
+          "age": 35.0,
+          "years_waiting": 11.0,
+          "health_score": 4.0,
+          "dependents": 1.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 4.0
+        },
+        "B": {
+          "age": 61.0,
+          "years_waiting": 1.0,
+          "health_score": 6.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 4.0
+        }
+      },
+      {
+        "A": {
+          "age": 32.0,
+          "years_waiting": 3.0,
+          "health_score": 7.0,
+          "dependents": 0.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 3.0
+        },
+        "B": {
+          "age": 51.0,
+          "years_waiting": 11.0,
+          "health_score": 4.0,
+          "dependents": 4.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 4.0
+        }
+      },
+      {
+        "A": {
+          "age": 60.0,
+          "years_waiting": 8.0,
+          "health_score": 4.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 3.0
+        },
+        "B": {
+          "age": 68.0,
+          "years_waiting": 4.0,
+          "health_score": 7.0,
+          "dependents": 2.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 10.0
+        }
+      },
+      {
+        "A": {
+          "age": 43.0,
+          "years_waiting": 11.0,
+          "health_score": 8.0,
+          "dependents": 0.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 9.0
+        },
+        "B": {
+          "age": 38.0,
+          "years_waiting": 2.0,
+          "health_score": 9.0,
+          "dependents": 4.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 7.0
+        }
+      },
+      {
+        "A": {
+          "age": 49.0,
+          "years_waiting": 3.0,
+          "health_score": 8.0,
+          "dependents": 0.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 6.0
+        },
+        "B": {
+          "age": 46.0,
+          "years_waiting": 10.0,
+          "health_score": 8.0,
+          "dependents": 1.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 9.0
+        }
+      }
+    ],
+    "survey_index": 20,
+    "survey_decisions": [
+      {
+        "username": "rs",
+        "scenario": 1,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:09:50.251914",
+        "A_age": 61.0,
+        "B_age": 65.0,
+        "A_years_waiting": 4.0,
+        "B_years_waiting": 2.0,
+        "A_health_score": 8.0,
+        "B_health_score": 5.0,
+        "A_dependents": 4.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 5.0
+      },
+      {
+        "username": "rs",
+        "scenario": 2,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:09:50.737500",
+        "A_age": 42.0,
+        "B_age": 59.0,
+        "A_years_waiting": 1.0,
+        "B_years_waiting": 11.0,
+        "A_health_score": 4.0,
+        "B_health_score": 5.0,
+        "A_dependents": 1.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 9.0,
+        "B_urgency_score": 4.0
+      },
+      {
+        "username": "rs",
+        "scenario": 3,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:09:51.205608",
+        "A_age": 49.0,
+        "B_age": 30.0,
+        "A_years_waiting": 3.0,
+        "B_years_waiting": 8.0,
+        "A_health_score": 4.0,
+        "B_health_score": 5.0,
+        "A_dependents": 2.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 4.0,
+        "B_urgency_score": 10.0
+      },
+      {
+        "username": "rs",
+        "scenario": 4,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:09:51.970866",
+        "A_age": 33.0,
+        "B_age": 39.0,
+        "A_years_waiting": 1.0,
+        "B_years_waiting": 11.0,
+        "A_health_score": 9.0,
+        "B_health_score": 4.0,
+        "A_dependents": 1.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 4.0
+      },
+      {
+        "username": "rs",
+        "scenario": 5,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:09:52.269797",
+        "A_age": 53.0,
+        "B_age": 32.0,
+        "A_years_waiting": 5.0,
+        "B_years_waiting": 9.0,
+        "A_health_score": 5.0,
+        "B_health_score": 7.0,
+        "A_dependents": 2.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 3.0,
+        "B_urgency_score": 10.0
+      },
+      {
+        "username": "rs",
+        "scenario": 6,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:53.688215",
+        "A_age": 32.0,
+        "B_age": 54.0,
+        "A_years_waiting": 10.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 9.0,
+        "B_health_score": 9.0,
+        "A_dependents": 3.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 4.0
+      },
+      {
+        "username": "rs",
+        "scenario": 7,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:53.917977",
+        "A_age": 40.0,
+        "B_age": 27.0,
+        "A_years_waiting": 5.0,
+        "B_years_waiting": 3.0,
+        "A_health_score": 6.0,
+        "B_health_score": 8.0,
+        "A_dependents": 2.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 6.0
+      },
+      {
+        "username": "rs",
+        "scenario": 8,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:54.305551",
+        "A_age": 67.0,
+        "B_age": 45.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 7.0,
+        "B_health_score": 5.0,
+        "A_dependents": 0.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 10.0,
+        "B_urgency_score": 8.0
+      },
+      {
+        "username": "rs",
+        "scenario": 9,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:54.671740",
+        "A_age": 47.0,
+        "B_age": 26.0,
+        "A_years_waiting": 4.0,
+        "B_years_waiting": 12.0,
+        "A_health_score": 7.0,
+        "B_health_score": 5.0,
+        "A_dependents": 1.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 4.0
+      },
+      {
+        "username": "rs",
+        "scenario": 10,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:54.867452",
+        "A_age": 62.0,
+        "B_age": 65.0,
+        "A_years_waiting": 4.0,
+        "B_years_waiting": 2.0,
+        "A_health_score": 7.0,
+        "B_health_score": 9.0,
+        "A_dependents": 4.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 5.0
+      },
+      {
+        "username": "rs",
+        "scenario": 11,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:55.066573",
+        "A_age": 45.0,
+        "B_age": 62.0,
+        "A_years_waiting": 6.0,
+        "B_years_waiting": 8.0,
+        "A_health_score": 4.0,
+        "B_health_score": 8.0,
+        "A_dependents": 3.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 8.0,
+        "B_urgency_score": 10.0
+      },
+      {
+        "username": "rs",
+        "scenario": 12,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:55.266599",
+        "A_age": 40.0,
+        "B_age": 30.0,
+        "A_years_waiting": 1.0,
+        "B_years_waiting": 10.0,
+        "A_health_score": 8.0,
+        "B_health_score": 8.0,
+        "A_dependents": 0.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 4.0
+      },
+      {
+        "username": "rs",
+        "scenario": 13,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:55.449454",
+        "A_age": 28.0,
+        "B_age": 52.0,
+        "A_years_waiting": 8.0,
+        "B_years_waiting": 6.0,
+        "A_health_score": 4.0,
+        "B_health_score": 9.0,
+        "A_dependents": 4.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 4.0,
+        "B_urgency_score": 8.0
+      },
+      {
+        "username": "rs",
+        "scenario": 14,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:55.650148",
+        "A_age": 41.0,
+        "B_age": 33.0,
+        "A_years_waiting": 11.0,
+        "B_years_waiting": 6.0,
+        "A_health_score": 6.0,
+        "B_health_score": 7.0,
+        "A_dependents": 3.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 3.0,
+        "B_urgency_score": 10.0
+      },
+      {
+        "username": "rs",
+        "scenario": 15,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:55.850238",
+        "A_age": 37.0,
+        "B_age": 28.0,
+        "A_years_waiting": 3.0,
+        "B_years_waiting": 6.0,
+        "A_health_score": 6.0,
+        "B_health_score": 8.0,
+        "A_dependents": 1.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 8.0
+      },
+      {
+        "username": "rs",
+        "scenario": 16,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:56.032526",
+        "A_age": 35.0,
+        "B_age": 61.0,
+        "A_years_waiting": 11.0,
+        "B_years_waiting": 1.0,
+        "A_health_score": 4.0,
+        "B_health_score": 6.0,
+        "A_dependents": 1.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 4.0,
+        "B_urgency_score": 4.0
+      },
+      {
+        "username": "rs",
+        "scenario": 17,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:56.234204",
+        "A_age": 32.0,
+        "B_age": 51.0,
+        "A_years_waiting": 3.0,
+        "B_years_waiting": 11.0,
+        "A_health_score": 7.0,
+        "B_health_score": 4.0,
+        "A_dependents": 0.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 3.0,
+        "B_urgency_score": 4.0
+      },
+      {
+        "username": "rs",
+        "scenario": 18,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:56.416302",
+        "A_age": 60.0,
+        "B_age": 68.0,
+        "A_years_waiting": 8.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 4.0,
+        "B_health_score": 7.0,
+        "A_dependents": 1.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 3.0,
+        "B_urgency_score": 10.0
+      },
+      {
+        "username": "rs",
+        "scenario": 19,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:56.616968",
+        "A_age": 43.0,
+        "B_age": 38.0,
+        "A_years_waiting": 11.0,
+        "B_years_waiting": 2.0,
+        "A_health_score": 8.0,
+        "B_health_score": 9.0,
+        "A_dependents": 0.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 9.0,
+        "B_urgency_score": 7.0
+      },
+      {
+        "username": "rs",
+        "scenario": 20,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:09:56.834595",
+        "A_age": 49.0,
+        "B_age": 46.0,
+        "A_years_waiting": 3.0,
+        "B_years_waiting": 10.0,
+        "A_health_score": 8.0,
+        "B_health_score": 8.0,
+        "A_dependents": 0.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 9.0
+      }
+    ],
+    "part3_scenarios": [
+      {
+        "A": {
+          "age": 65.0,
+          "years_waiting": 1.0,
+          "health_score": 6.0,
+          "dependents": 1.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 4.0
+        },
+        "B": {
+          "age": 32.0,
+          "years_waiting": 12.0,
+          "health_score": 5.0,
+          "dependents": 1.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 9.0
+        }
+      },
+      {
+        "A": {
+          "age": 27.0,
+          "years_waiting": 2.0,
+          "health_score": 5.0,
+          "dependents": 4.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 9.0
+        },
+        "B": {
+          "age": 26.0,
+          "years_waiting": 4.0,
+          "health_score": 8.0,
+          "dependents": 0.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 6.0
+        }
+      },
+      {
+        "A": {
+          "age": 53.0,
+          "years_waiting": 5.0,
+          "health_score": 5.0,
+          "dependents": 3.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 6.0
+        },
+        "B": {
+          "age": 62.0,
+          "years_waiting": 1.0,
+          "health_score": 9.0,
+          "dependents": 2.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 8.0
+        }
+      },
+      {
+        "A": {
+          "age": 31.0,
+          "years_waiting": 7.0,
+          "health_score": 6.0,
+          "dependents": 4.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 10.0
+        },
+        "B": {
+          "age": 30.0,
+          "years_waiting": 2.0,
+          "health_score": 6.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 4.0
+        }
+      },
+      {
+        "A": {
+          "age": 49.0,
+          "years_waiting": 9.0,
+          "health_score": 9.0,
+          "dependents": 2.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 4.0
+        },
+        "B": {
+          "age": 30.0,
+          "years_waiting": 5.0,
+          "health_score": 8.0,
+          "dependents": 4.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 3.0
+        }
+      },
+      {
+        "A": {
+          "age": 67.0,
+          "years_waiting": 5.0,
+          "health_score": 5.0,
+          "dependents": 3.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 8.0
+        },
+        "B": {
+          "age": 39.0,
+          "years_waiting": 2.0,
+          "health_score": 4.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 5.0
+        }
+      },
+      {
+        "A": {
+          "age": 48.0,
+          "years_waiting": 4.0,
+          "health_score": 6.0,
+          "dependents": 0.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 6.0
+        },
+        "B": {
+          "age": 47.0,
+          "years_waiting": 11.0,
+          "health_score": 9.0,
+          "dependents": 4.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 5.0
+        }
+      },
+      {
+        "A": {
+          "age": 54.0,
+          "years_waiting": 5.0,
+          "health_score": 9.0,
+          "dependents": 1.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 3.0
+        },
+        "B": {
+          "age": 49.0,
+          "years_waiting": 11.0,
+          "health_score": 8.0,
+          "dependents": 2.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 8.0
+        }
+      },
+      {
+        "A": {
+          "age": 50.0,
+          "years_waiting": 2.0,
+          "health_score": 8.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 9.0
+        },
+        "B": {
+          "age": 42.0,
+          "years_waiting": 4.0,
+          "health_score": 9.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 10.0
+        }
+      },
+      {
+        "A": {
+          "age": 34.0,
+          "years_waiting": 3.0,
+          "health_score": 9.0,
+          "dependents": 4.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 9.0
+        },
+        "B": {
+          "age": 41.0,
+          "years_waiting": 4.0,
+          "health_score": 8.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 9.0
+        }
+      },
+      {
+        "A": {
+          "age": 48.0,
+          "years_waiting": 3.0,
+          "health_score": 7.0,
+          "dependents": 0.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 39.0,
+          "years_waiting": 9.0,
+          "health_score": 4.0,
+          "dependents": 0.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 9.0
+        }
+      },
+      {
+        "A": {
+          "age": 63.0,
+          "years_waiting": 7.0,
+          "health_score": 8.0,
+          "dependents": 4.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 4.0
+        },
+        "B": {
+          "age": 29.0,
+          "years_waiting": 7.0,
+          "health_score": 7.0,
+          "dependents": 2.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 7.0
+        }
+      },
+      {
+        "A": {
+          "age": 66.0,
+          "years_waiting": 2.0,
+          "health_score": 7.0,
+          "dependents": 3.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 7.0
+        },
+        "B": {
+          "age": 46.0,
+          "years_waiting": 5.0,
+          "health_score": 5.0,
+          "dependents": 0.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 5.0
+        }
+      },
+      {
+        "A": {
+          "age": 57.0,
+          "years_waiting": 11.0,
+          "health_score": 9.0,
+          "dependents": 4.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 31.0,
+          "years_waiting": 5.0,
+          "health_score": 8.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 3.0
+        }
+      },
+      {
+        "A": {
+          "age": 63.0,
+          "years_waiting": 8.0,
+          "health_score": 4.0,
+          "dependents": 2.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 4.0
+        },
+        "B": {
+          "age": 45.0,
+          "years_waiting": 1.0,
+          "health_score": 6.0,
+          "dependents": 1.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 4.0
+        }
+      },
+      {
+        "A": {
+          "age": 56.0,
+          "years_waiting": 9.0,
+          "health_score": 5.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 9.0
+        },
+        "B": {
+          "age": 29.0,
+          "years_waiting": 3.0,
+          "health_score": 9.0,
+          "dependents": 4.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 6.0
+        }
+      },
+      {
+        "A": {
+          "age": 59.0,
+          "years_waiting": 12.0,
+          "health_score": 7.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 4.0
+        },
+        "B": {
+          "age": 37.0,
+          "years_waiting": 5.0,
+          "health_score": 9.0,
+          "dependents": 3.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 6.0
+        }
+      },
+      {
+        "A": {
+          "age": 39.0,
+          "years_waiting": 6.0,
+          "health_score": 8.0,
+          "dependents": 1.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 4.0
+        },
+        "B": {
+          "age": 29.0,
+          "years_waiting": 1.0,
+          "health_score": 8.0,
+          "dependents": 4.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 3.0
+        }
+      },
+      {
+        "A": {
+          "age": 39.0,
+          "years_waiting": 1.0,
+          "health_score": 4.0,
+          "dependents": 1.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 6.0
+        },
+        "B": {
+          "age": 29.0,
+          "years_waiting": 6.0,
+          "health_score": 8.0,
+          "dependents": 2.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 5.0
+        }
+      },
+      {
+        "A": {
+          "age": 61.0,
+          "years_waiting": 8.0,
+          "health_score": 7.0,
+          "dependents": 1.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 9.0
+        },
+        "B": {
+          "age": 61.0,
+          "years_waiting": 4.0,
+          "health_score": 7.0,
+          "dependents": 0.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 8.0
+        }
+      }
+    ],
+    "part3_index": 20,
+    "part3_decisions": [
+      {
+        "username": "rs",
+        "scenario": 1,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:10:16.488587",
+        "A_age": 65.0,
+        "B_age": 32.0,
+        "A_years_waiting": 1.0,
+        "B_years_waiting": 12.0,
+        "A_health_score": 6.0,
+        "B_health_score": 5.0,
+        "A_dependents": 1.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 4.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "rs",
+        "scenario": 2,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:17.240929",
+        "A_age": 27.0,
+        "B_age": 26.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 5.0,
+        "B_health_score": 8.0,
+        "A_dependents": 4.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 9.0,
+        "B_urgency_score": 6.0
+      },
+      {
+        "username": "rs",
+        "scenario": 3,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:17.639326",
+        "A_age": 53.0,
+        "B_age": 62.0,
+        "A_years_waiting": 5.0,
+        "B_years_waiting": 1.0,
+        "A_health_score": 5.0,
+        "B_health_score": 9.0,
+        "A_dependents": 3.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 8.0
+      },
+      {
+        "username": "rs",
+        "scenario": 4,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:18.037272",
+        "A_age": 31.0,
+        "B_age": 30.0,
+        "A_years_waiting": 7.0,
+        "B_years_waiting": 2.0,
+        "A_health_score": 6.0,
+        "B_health_score": 6.0,
+        "A_dependents": 4.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 10.0,
+        "B_urgency_score": 4.0
+      },
+      {
+        "username": "rs",
+        "scenario": 5,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:18.489876",
+        "A_age": 49.0,
+        "B_age": 30.0,
+        "A_years_waiting": 9.0,
+        "B_years_waiting": 5.0,
+        "A_health_score": 9.0,
+        "B_health_score": 8.0,
+        "A_dependents": 2.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 4.0,
+        "B_urgency_score": 3.0
+      },
+      {
+        "username": "rs",
+        "scenario": 6,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:18.890033",
+        "A_age": 67.0,
+        "B_age": 39.0,
+        "A_years_waiting": 5.0,
+        "B_years_waiting": 2.0,
+        "A_health_score": 5.0,
+        "B_health_score": 4.0,
+        "A_dependents": 3.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 8.0,
+        "B_urgency_score": 5.0
+      },
+      {
+        "username": "rs",
+        "scenario": 7,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:19.256625",
+        "A_age": 48.0,
+        "B_age": 47.0,
+        "A_years_waiting": 4.0,
+        "B_years_waiting": 11.0,
+        "A_health_score": 6.0,
+        "B_health_score": 9.0,
+        "A_dependents": 0.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 5.0
+      },
+      {
+        "username": "rs",
+        "scenario": 8,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:19.451460",
+        "A_age": 54.0,
+        "B_age": 49.0,
+        "A_years_waiting": 5.0,
+        "B_years_waiting": 11.0,
+        "A_health_score": 9.0,
+        "B_health_score": 8.0,
+        "A_dependents": 1.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 3.0,
+        "B_urgency_score": 8.0
+      },
+      {
+        "username": "rs",
+        "scenario": 9,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:19.872555",
+        "A_age": 50.0,
+        "B_age": 42.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 8.0,
+        "B_health_score": 9.0,
+        "A_dependents": 2.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 9.0,
+        "B_urgency_score": 10.0
+      },
+      {
+        "username": "rs",
+        "scenario": 10,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:20.288861",
+        "A_age": 34.0,
+        "B_age": 41.0,
+        "A_years_waiting": 3.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 9.0,
+        "B_health_score": 8.0,
+        "A_dependents": 4.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 9.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "rs",
+        "scenario": 11,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:20.517357",
+        "A_age": 48.0,
+        "B_age": 39.0,
+        "A_years_waiting": 3.0,
+        "B_years_waiting": 9.0,
+        "A_health_score": 7.0,
+        "B_health_score": 4.0,
+        "A_dependents": 0.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "rs",
+        "scenario": 12,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:20.717885",
+        "A_age": 63.0,
+        "B_age": 29.0,
+        "A_years_waiting": 7.0,
+        "B_years_waiting": 7.0,
+        "A_health_score": 8.0,
+        "B_health_score": 7.0,
+        "A_dependents": 4.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 4.0,
+        "B_urgency_score": 7.0
+      },
+      {
+        "username": "rs",
+        "scenario": 13,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:20.900783",
+        "A_age": 66.0,
+        "B_age": 46.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 5.0,
+        "A_health_score": 7.0,
+        "B_health_score": 5.0,
+        "A_dependents": 3.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 5.0
+      },
+      {
+        "username": "rs",
+        "scenario": 14,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:10:21.520915",
+        "A_age": 57.0,
+        "B_age": 31.0,
+        "A_years_waiting": 11.0,
+        "B_years_waiting": 5.0,
+        "A_health_score": 9.0,
+        "B_health_score": 8.0,
+        "A_dependents": 4.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 3.0
+      },
+      {
+        "username": "rs",
+        "scenario": 15,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:10:21.751830",
+        "A_age": 63.0,
+        "B_age": 45.0,
+        "A_years_waiting": 8.0,
+        "B_years_waiting": 1.0,
+        "A_health_score": 4.0,
+        "B_health_score": 6.0,
+        "A_dependents": 2.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 4.0,
+        "B_urgency_score": 4.0
+      },
+      {
+        "username": "rs",
+        "scenario": 16,
+        "choice": "A",
+        "timestamp": "2026-07-17T09:10:21.950198",
+        "A_age": 56.0,
+        "B_age": 29.0,
+        "A_years_waiting": 9.0,
+        "B_years_waiting": 3.0,
+        "A_health_score": 5.0,
+        "B_health_score": 9.0,
+        "A_dependents": 3.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 9.0,
+        "B_urgency_score": 6.0
+      },
+      {
+        "username": "rs",
+        "scenario": 17,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:22.455321",
+        "A_age": 59.0,
+        "B_age": 37.0,
+        "A_years_waiting": 12.0,
+        "B_years_waiting": 5.0,
+        "A_health_score": 7.0,
+        "B_health_score": 9.0,
+        "A_dependents": 2.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 4.0,
+        "B_urgency_score": 6.0
+      },
+      {
+        "username": "rs",
+        "scenario": 18,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:22.756936",
+        "A_age": 39.0,
+        "B_age": 29.0,
+        "A_years_waiting": 6.0,
+        "B_years_waiting": 1.0,
+        "A_health_score": 8.0,
+        "B_health_score": 8.0,
+        "A_dependents": 1.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 4.0,
+        "B_urgency_score": 3.0
+      },
+      {
+        "username": "rs",
+        "scenario": 19,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:22.988778",
+        "A_age": 39.0,
+        "B_age": 29.0,
+        "A_years_waiting": 1.0,
+        "B_years_waiting": 6.0,
+        "A_health_score": 4.0,
+        "B_health_score": 8.0,
+        "A_dependents": 1.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 5.0
+      },
+      {
+        "username": "rs",
+        "scenario": 20,
+        "choice": "B",
+        "timestamp": "2026-07-17T09:10:23.184068",
+        "A_age": 61.0,
+        "B_age": 61.0,
+        "A_years_waiting": 8.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 7.0,
+        "B_health_score": 7.0,
+        "A_dependents": 1.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 9.0,
+        "B_urgency_score": 8.0
+      }
+    ],
+    "survey_alignment_score": 3,
+    "thinking_evolution_text": "It seems there was an error in the information provided. However, I can still give you a neutral and descriptive response based on the information given. \n\nBetween Phase 1 and Phase 2, your decision patterns remained consistent, with the same factors influencing your choices in the same order. The additional scenarios presented in Phase 2 reinforced this pattern without introducing any significant changes.\n\nSimilarly, between Phase 2 and Phase 3, your decision patterns continued to be driven by the same factors in the same order. The extra scenarios presented in Phase 3 further confirmed this consistent pattern, without any notable shifts in your approach."
   },
   "rc": {
     "sc_index": 20,
@@ -4693,5 +6936,1197 @@
     "survey_index": 0,
     "survey_decisions": [],
     "alignment_score": 3
+  },
+  "Chitresh Bhati": {
+    "sc_index": 20,
+    "decisions": [
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 1,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:25.355794",
+        "A_age": 28.0,
+        "B_age": 55.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 9.0,
+        "A_health_score": 8.0,
+        "B_health_score": 7.0,
+        "A_dependents": 1.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 7.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 2,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:26.055287",
+        "A_age": 40.0,
+        "B_age": 42.0,
+        "A_years_waiting": 3.0,
+        "B_years_waiting": 7.0,
+        "A_health_score": 9.0,
+        "B_health_score": 6.0,
+        "A_dependents": 2.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 8.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 3,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:26.638444",
+        "A_age": 35.0,
+        "B_age": 38.0,
+        "A_years_waiting": 4.0,
+        "B_years_waiting": 5.0,
+        "A_health_score": 7.0,
+        "B_health_score": 7.0,
+        "A_dependents": 4.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 4,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:26.904428",
+        "A_age": 45.0,
+        "B_age": 40.0,
+        "A_years_waiting": 6.0,
+        "B_years_waiting": 8.0,
+        "A_health_score": 8.0,
+        "B_health_score": 9.0,
+        "A_dependents": 2.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 8.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 5,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:27.164511",
+        "A_age": 38.0,
+        "B_age": 40.0,
+        "A_years_waiting": 5.0,
+        "B_years_waiting": 5.0,
+        "A_health_score": 7.0,
+        "B_health_score": 8.0,
+        "A_dependents": 2.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 7.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 6,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:27.401275",
+        "A_age": 30.0,
+        "B_age": 52.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 8.0,
+        "B_health_score": 6.0,
+        "A_dependents": 3.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 7,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:27.615896",
+        "A_age": 50.0,
+        "B_age": 35.0,
+        "A_years_waiting": 10.0,
+        "B_years_waiting": 3.0,
+        "A_health_score": 6.0,
+        "B_health_score": 9.0,
+        "A_dependents": 1.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 8.0,
+        "B_urgency_score": 7.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 8,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:27.815630",
+        "A_age": 48.0,
+        "B_age": 60.0,
+        "A_years_waiting": 7.0,
+        "B_years_waiting": 6.0,
+        "A_health_score": 7.0,
+        "B_health_score": 6.0,
+        "A_dependents": 2.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 8.0,
+        "B_urgency_score": 7.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 9,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:27.999752",
+        "A_age": 42.0,
+        "B_age": 44.0,
+        "A_years_waiting": 1.0,
+        "B_years_waiting": 11.0,
+        "A_health_score": 5.0,
+        "B_health_score": 7.0,
+        "A_dependents": 2.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 10.0,
+        "B_urgency_score": 5.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 10,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:28.222729",
+        "A_age": 25.0,
+        "B_age": 62.0,
+        "A_years_waiting": 4.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 7.0,
+        "B_health_score": 7.0,
+        "A_dependents": 1.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 7.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 11,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:29.290428",
+        "A_age": 40.0,
+        "B_age": 40.0,
+        "A_years_waiting": 1.0,
+        "B_years_waiting": 10.0,
+        "A_health_score": 7.0,
+        "B_health_score": 7.0,
+        "A_dependents": 2.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 7.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 12,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:29.737311",
+        "A_age": 45.0,
+        "B_age": 45.0,
+        "A_years_waiting": 5.0,
+        "B_years_waiting": 5.0,
+        "A_health_score": 9.0,
+        "B_health_score": 4.0,
+        "A_dependents": 2.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 6.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 13,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:29.916540",
+        "A_age": 30.0,
+        "B_age": 58.0,
+        "A_years_waiting": 8.0,
+        "B_years_waiting": 2.0,
+        "A_health_score": 9.0,
+        "B_health_score": 4.0,
+        "A_dependents": 3.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 9.0,
+        "B_urgency_score": 3.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 14,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:30.135431",
+        "A_age": 65.0,
+        "B_age": 28.0,
+        "A_years_waiting": 1.0,
+        "B_years_waiting": 9.0,
+        "A_health_score": 4.0,
+        "B_health_score": 9.0,
+        "A_dependents": 0.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 3.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 15,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:30.353057",
+        "A_age": 55.0,
+        "B_age": 30.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 6.0,
+        "A_health_score": 5.0,
+        "B_health_score": 8.0,
+        "A_dependents": 0.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 10.0,
+        "B_urgency_score": 4.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 16,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:30.771689",
+        "A_age": 25.0,
+        "B_age": 68.0,
+        "A_years_waiting": 3.0,
+        "B_years_waiting": 5.0,
+        "A_health_score": 8.0,
+        "B_health_score": 6.0,
+        "A_dependents": 4.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 6.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 17,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:30.985344",
+        "A_age": 29.0,
+        "B_age": 50.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 8.0,
+        "A_health_score": 8.0,
+        "B_health_score": 7.0,
+        "A_dependents": 3.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 18,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:31.438464",
+        "A_age": 40.0,
+        "B_age": 40.0,
+        "A_years_waiting": 9.0,
+        "B_years_waiting": 2.0,
+        "A_health_score": 5.0,
+        "B_health_score": 9.0,
+        "A_dependents": 3.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 9.0,
+        "B_urgency_score": 5.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 19,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:31.672793",
+        "A_age": 35.0,
+        "B_age": 38.0,
+        "A_years_waiting": 7.0,
+        "B_years_waiting": 6.0,
+        "A_health_score": 8.0,
+        "B_health_score": 7.0,
+        "A_dependents": 2.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 8.0,
+        "B_urgency_score": 7.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 20,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:42:31.886914",
+        "A_age": 42.0,
+        "B_age": 43.0,
+        "A_years_waiting": 12.0,
+        "B_years_waiting": 1.0,
+        "A_health_score": 7.0,
+        "B_health_score": 7.0,
+        "A_dependents": 2.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 4.0,
+        "B_urgency_score": 10.0
+      }
+    ],
+    "survey_scenarios": [
+      {
+        "A": {
+          "age": 66.0,
+          "years_waiting": 7.0,
+          "health_score": 5.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 6.0
+        },
+        "B": {
+          "age": 60.0,
+          "years_waiting": 5.0,
+          "health_score": 6.0,
+          "dependents": 4.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 3.0
+        }
+      },
+      {
+        "A": {
+          "age": 66.0,
+          "years_waiting": 5.0,
+          "health_score": 4.0,
+          "dependents": 4.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 4.0
+        },
+        "B": {
+          "age": 29.0,
+          "years_waiting": 4.0,
+          "health_score": 6.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 10.0
+        }
+      },
+      {
+        "A": {
+          "age": 53.0,
+          "years_waiting": 3.0,
+          "health_score": 9.0,
+          "dependents": 0.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 31.0,
+          "years_waiting": 7.0,
+          "health_score": 5.0,
+          "dependents": 3.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 4.0
+        }
+      },
+      {
+        "A": {
+          "age": 42.0,
+          "years_waiting": 11.0,
+          "health_score": 4.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 3.0
+        },
+        "B": {
+          "age": 37.0,
+          "years_waiting": 5.0,
+          "health_score": 9.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 3.0
+        }
+      },
+      {
+        "A": {
+          "age": 35.0,
+          "years_waiting": 10.0,
+          "health_score": 8.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 61.0,
+          "years_waiting": 8.0,
+          "health_score": 5.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 7.0
+        }
+      },
+      {
+        "A": {
+          "age": 38.0,
+          "years_waiting": 7.0,
+          "health_score": 4.0,
+          "dependents": 4.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 3.0
+        },
+        "B": {
+          "age": 35.0,
+          "years_waiting": 3.0,
+          "health_score": 9.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 8.0
+        }
+      },
+      {
+        "A": {
+          "age": 49.0,
+          "years_waiting": 9.0,
+          "health_score": 8.0,
+          "dependents": 0.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 6.0
+        },
+        "B": {
+          "age": 52.0,
+          "years_waiting": 8.0,
+          "health_score": 8.0,
+          "dependents": 3.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 9.0
+        }
+      },
+      {
+        "A": {
+          "age": 33.0,
+          "years_waiting": 10.0,
+          "health_score": 4.0,
+          "dependents": 4.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 6.0
+        },
+        "B": {
+          "age": 52.0,
+          "years_waiting": 6.0,
+          "health_score": 5.0,
+          "dependents": 1.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 6.0
+        }
+      },
+      {
+        "A": {
+          "age": 52.0,
+          "years_waiting": 11.0,
+          "health_score": 7.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 8.0
+        },
+        "B": {
+          "age": 44.0,
+          "years_waiting": 11.0,
+          "health_score": 4.0,
+          "dependents": 3.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 4.0
+        }
+      },
+      {
+        "A": {
+          "age": 41.0,
+          "years_waiting": 6.0,
+          "health_score": 5.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 65.0,
+          "years_waiting": 8.0,
+          "health_score": 8.0,
+          "dependents": 1.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 5.0
+        }
+      },
+      {
+        "A": {
+          "age": 61.0,
+          "years_waiting": 1.0,
+          "health_score": 9.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 7.0
+        },
+        "B": {
+          "age": 33.0,
+          "years_waiting": 9.0,
+          "health_score": 6.0,
+          "dependents": 4.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 3.0
+        }
+      },
+      {
+        "A": {
+          "age": 36.0,
+          "years_waiting": 8.0,
+          "health_score": 9.0,
+          "dependents": 0.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 7.0
+        },
+        "B": {
+          "age": 33.0,
+          "years_waiting": 3.0,
+          "health_score": 8.0,
+          "dependents": 1.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 5.0
+        }
+      },
+      {
+        "A": {
+          "age": 41.0,
+          "years_waiting": 11.0,
+          "health_score": 5.0,
+          "dependents": 0.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 32.0,
+          "years_waiting": 3.0,
+          "health_score": 6.0,
+          "dependents": 3.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 7.0
+        }
+      },
+      {
+        "A": {
+          "age": 62.0,
+          "years_waiting": 7.0,
+          "health_score": 5.0,
+          "dependents": 0.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 10.0
+        },
+        "B": {
+          "age": 54.0,
+          "years_waiting": 11.0,
+          "health_score": 6.0,
+          "dependents": 0.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 8.0
+        }
+      },
+      {
+        "A": {
+          "age": 31.0,
+          "years_waiting": 2.0,
+          "health_score": 5.0,
+          "dependents": 0.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 7.0
+        },
+        "B": {
+          "age": 46.0,
+          "years_waiting": 1.0,
+          "health_score": 7.0,
+          "dependents": 0.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 9.0
+        }
+      },
+      {
+        "A": {
+          "age": 54.0,
+          "years_waiting": 4.0,
+          "health_score": 7.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 3.0
+        },
+        "B": {
+          "age": 45.0,
+          "years_waiting": 10.0,
+          "health_score": 8.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 5.0
+        }
+      },
+      {
+        "A": {
+          "age": 54.0,
+          "years_waiting": 3.0,
+          "health_score": 8.0,
+          "dependents": 3.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 9.0
+        },
+        "B": {
+          "age": 62.0,
+          "years_waiting": 6.0,
+          "health_score": 9.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 9.0
+        }
+      },
+      {
+        "A": {
+          "age": 67.0,
+          "years_waiting": 5.0,
+          "health_score": 6.0,
+          "dependents": 1.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 33.0,
+          "years_waiting": 1.0,
+          "health_score": 4.0,
+          "dependents": 3.0,
+          "prior_transplants": 0.0,
+          "urgency_score": 10.0
+        }
+      },
+      {
+        "A": {
+          "age": 37.0,
+          "years_waiting": 3.0,
+          "health_score": 4.0,
+          "dependents": 2.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 5.0
+        },
+        "B": {
+          "age": 65.0,
+          "years_waiting": 12.0,
+          "health_score": 4.0,
+          "dependents": 2.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 9.0
+        }
+      },
+      {
+        "A": {
+          "age": 40.0,
+          "years_waiting": 4.0,
+          "health_score": 7.0,
+          "dependents": 3.0,
+          "prior_transplants": 2.0,
+          "urgency_score": 7.0
+        },
+        "B": {
+          "age": 30.0,
+          "years_waiting": 4.0,
+          "health_score": 8.0,
+          "dependents": 0.0,
+          "prior_transplants": 1.0,
+          "urgency_score": 7.0
+        }
+      }
+    ],
+    "survey_index": 20,
+    "survey_decisions": [
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 1,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:43:12.051393",
+        "A_age": 66.0,
+        "B_age": 60.0,
+        "A_years_waiting": 7.0,
+        "B_years_waiting": 5.0,
+        "A_health_score": 5.0,
+        "B_health_score": 6.0,
+        "A_dependents": 2.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 3.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 2,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:13.401964",
+        "A_age": 66.0,
+        "B_age": 29.0,
+        "A_years_waiting": 5.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 4.0,
+        "B_health_score": 6.0,
+        "A_dependents": 4.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 4.0,
+        "B_urgency_score": 10.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 3,
+        "choice": "B",
+        "timestamp": "2026-07-17T08:43:13.872769",
+        "A_age": 53.0,
+        "B_age": 31.0,
+        "A_years_waiting": 3.0,
+        "B_years_waiting": 7.0,
+        "A_health_score": 9.0,
+        "B_health_score": 5.0,
+        "A_dependents": 0.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 4.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 4,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:14.571347",
+        "A_age": 42.0,
+        "B_age": 37.0,
+        "A_years_waiting": 11.0,
+        "B_years_waiting": 5.0,
+        "A_health_score": 4.0,
+        "B_health_score": 9.0,
+        "A_dependents": 3.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 3.0,
+        "B_urgency_score": 3.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 5,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:14.906200",
+        "A_age": 35.0,
+        "B_age": 61.0,
+        "A_years_waiting": 10.0,
+        "B_years_waiting": 8.0,
+        "A_health_score": 8.0,
+        "B_health_score": 5.0,
+        "A_dependents": 1.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 7.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 6,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:15.307759",
+        "A_age": 38.0,
+        "B_age": 35.0,
+        "A_years_waiting": 7.0,
+        "B_years_waiting": 3.0,
+        "A_health_score": 4.0,
+        "B_health_score": 9.0,
+        "A_dependents": 4.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 3.0,
+        "B_urgency_score": 8.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 7,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:15.623617",
+        "A_age": 49.0,
+        "B_age": 52.0,
+        "A_years_waiting": 9.0,
+        "B_years_waiting": 8.0,
+        "A_health_score": 8.0,
+        "B_health_score": 8.0,
+        "A_dependents": 0.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 1.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 8,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:16.020930",
+        "A_age": 33.0,
+        "B_age": 52.0,
+        "A_years_waiting": 10.0,
+        "B_years_waiting": 6.0,
+        "A_health_score": 4.0,
+        "B_health_score": 5.0,
+        "A_dependents": 4.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 6.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 9,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:16.408311",
+        "A_age": 52.0,
+        "B_age": 44.0,
+        "A_years_waiting": 11.0,
+        "B_years_waiting": 11.0,
+        "A_health_score": 7.0,
+        "B_health_score": 4.0,
+        "A_dependents": 2.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 8.0,
+        "B_urgency_score": 4.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 10,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:16.804649",
+        "A_age": 41.0,
+        "B_age": 65.0,
+        "A_years_waiting": 6.0,
+        "B_years_waiting": 8.0,
+        "A_health_score": 5.0,
+        "B_health_score": 8.0,
+        "A_dependents": 2.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 5.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 11,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:17.207116",
+        "A_age": 61.0,
+        "B_age": 33.0,
+        "A_years_waiting": 1.0,
+        "B_years_waiting": 9.0,
+        "A_health_score": 9.0,
+        "B_health_score": 6.0,
+        "A_dependents": 3.0,
+        "B_dependents": 4.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 3.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 12,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:17.623433",
+        "A_age": 36.0,
+        "B_age": 33.0,
+        "A_years_waiting": 8.0,
+        "B_years_waiting": 3.0,
+        "A_health_score": 9.0,
+        "B_health_score": 8.0,
+        "A_dependents": 0.0,
+        "B_dependents": 1.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 5.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 13,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:17.821429",
+        "A_age": 41.0,
+        "B_age": 32.0,
+        "A_years_waiting": 11.0,
+        "B_years_waiting": 3.0,
+        "A_health_score": 5.0,
+        "B_health_score": 6.0,
+        "A_dependents": 0.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 7.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 14,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:18.017932",
+        "A_age": 62.0,
+        "B_age": 54.0,
+        "A_years_waiting": 7.0,
+        "B_years_waiting": 11.0,
+        "A_health_score": 5.0,
+        "B_health_score": 6.0,
+        "A_dependents": 0.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 10.0,
+        "B_urgency_score": 8.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 15,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:18.240729",
+        "A_age": 31.0,
+        "B_age": 46.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 1.0,
+        "A_health_score": 5.0,
+        "B_health_score": 7.0,
+        "A_dependents": 0.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 16,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:18.456660",
+        "A_age": 54.0,
+        "B_age": 45.0,
+        "A_years_waiting": 4.0,
+        "B_years_waiting": 10.0,
+        "A_health_score": 7.0,
+        "B_health_score": 8.0,
+        "A_dependents": 2.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 3.0,
+        "B_urgency_score": 5.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 17,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:18.671672",
+        "A_age": 54.0,
+        "B_age": 62.0,
+        "A_years_waiting": 3.0,
+        "B_years_waiting": 6.0,
+        "A_health_score": 8.0,
+        "B_health_score": 9.0,
+        "A_dependents": 3.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 2.0,
+        "A_urgency_score": 9.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 18,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:18.869311",
+        "A_age": 67.0,
+        "B_age": 33.0,
+        "A_years_waiting": 5.0,
+        "B_years_waiting": 1.0,
+        "A_health_score": 6.0,
+        "B_health_score": 4.0,
+        "A_dependents": 1.0,
+        "B_dependents": 3.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 10.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 19,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:19.050420",
+        "A_age": 37.0,
+        "B_age": 65.0,
+        "A_years_waiting": 3.0,
+        "B_years_waiting": 12.0,
+        "A_health_score": 4.0,
+        "B_health_score": 4.0,
+        "A_dependents": 2.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 5.0,
+        "B_urgency_score": 9.0
+      },
+      {
+        "username": "Chitresh Bhati",
+        "scenario": 20,
+        "choice": "A",
+        "timestamp": "2026-07-17T08:43:19.290178",
+        "A_age": 40.0,
+        "B_age": 30.0,
+        "A_years_waiting": 4.0,
+        "B_years_waiting": 4.0,
+        "A_health_score": 7.0,
+        "B_health_score": 8.0,
+        "A_dependents": 3.0,
+        "B_dependents": 0.0,
+        "A_prior_transplants": 2.0,
+        "B_prior_transplants": 1.0,
+        "A_urgency_score": 7.0,
+        "B_urgency_score": 7.0
+      }
+    ],
+    "part3_scenarios": [],
+    "part3_index": 0,
+    "part3_decisions": [],
+    "alignment_score": 3,
+    "fft_override": {
+      "nodes": [
+        {
+          "feature": "age_diff",
+          "op": "<=",
+          "threshold": -0.5,
+          "exit_class": 0,
+          "support": 0.425,
+          "purity": 0.7647058823529411,
+          "refine": {
+            "feature": "years_waiting_diff",
+            "op": ">=",
+            "threshold": 1.5,
+            "true_class": 1,
+            "false_class": 0,
+            "support": 0.125,
+            "false_support": 0.3,
+            "purity": 0.6,
+            "false_purity": 0.9166666666666666
+          }
+        },
+        {
+          "feature": "prior_transplants_diff",
+          "op": "<=",
+          "threshold": 0.0,
+          "exit_class": 1,
+          "support": 0.475,
+          "purity": 0.7894736842105263,
+          "refine": {
+            "feature": "health_score_diff",
+            "op": ">=",
+            "threshold": 4.5,
+            "true_class": 0,
+            "false_class": 1,
+            "support": 0.025,
+            "false_support": 0.45,
+            "purity": 1.0,
+            "false_purity": 0.8333333333333334
+          }
+        },
+        {
+          "feature": "years_waiting_diff",
+          "op": ">=",
+          "threshold": -5.0,
+          "exit_class": 0,
+          "support": 0.05,
+          "purity": 1.0
+        },
+        {
+          "feature": "dependents_diff",
+          "op": ">=",
+          "threshold": -3.5,
+          "exit_class": 1,
+          "support": 0.025,
+          "purity": 1.0
+        }
+      ],
+      "default_class": 0,
+      "default_support": 0.025,
+      "default_purity": 1.0,
+      "feature_names": [
+        "age_diff",
+        "years_waiting_diff",
+        "health_score_diff",
+        "dependents_diff",
+        "prior_transplants_diff",
+        "urgency_score_diff"
+      ],
+      "max_depth": 4,
+      "near_tie_threshold": 4.0
+    },
+    "survey_alignment_score": 3
+  },
+  "hh": {
+    "sc_index": 1,
+    "decisions": [
+      {
+        "username": "hh",
+        "scenario": 1,
+        "choice": "B",
+        "timestamp": "2026-07-17T12:41:25.121226",
+        "A_age": 28.0,
+        "B_age": 55.0,
+        "A_years_waiting": 2.0,
+        "B_years_waiting": 9.0,
+        "A_health_score": 8.0,
+        "B_health_score": 7.0,
+        "A_dependents": 1.0,
+        "B_dependents": 2.0,
+        "A_prior_transplants": 0.0,
+        "B_prior_transplants": 0.0,
+        "A_urgency_score": 6.0,
+        "B_urgency_score": 7.0
+      }
+    ],
+    "survey_scenarios": [],
+    "survey_index": 0,
+    "survey_decisions": []
   }
 }

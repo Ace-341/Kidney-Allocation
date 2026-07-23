@@ -151,39 +151,53 @@ class FastFrugalTree:
             if len(np.unique(yr)) == 1:
                 break  # already pure — the default leaf will cover it
 
-            best = None  # (score, purity, n_exit, fidx, op, thr, exit_class, mask)
+            best = None  # (score, purity, n_exit, fidx, thr, prefer_higher, exit_class, mask)
             for fidx in range(X.shape[1]):
                 if fidx in used:
                     continue
-                xr = X[idx, fidx]
-                for thr in self._candidate_thresholds(xr):
-                    for op in (">=", "<="):
-                        M = (xr >= thr) if op == ">=" else (xr <= thr)
-                        n_exit = int(M.sum())
-                        if n_exit == 0 or n_exit == len(idx):
-                            continue  # intermediate node needs a real split
-                        yexit = yr[M]
-                        exit_class = int(round(yexit.mean()))
-                        n_correct = int((yexit == exit_class).sum())
-                        score = n_correct - (n_exit - n_correct)  # net correct exits
-                        purity = n_correct / n_exit
-                        key = (score, purity, n_exit)
-                        if best is None or key > (best[0], best[1], best[2]):
-                            best = (score, purity, n_exit, fidx, op,
-                                    float(thr), exit_class, M)
+                xr     = X[idx, fidx]
+                xr_abs = np.abs(xr)
+                for thr in self._candidate_thresholds(xr_abs):
+                    if thr <= 0:
+                        continue  # skip zero — trivial split on abs values
+                    M = xr_abs >= thr
+                    n_exit = int(M.sum())
+                    if n_exit == 0 or n_exit == len(idx):
+                        continue
+                    yexit = yr[M]
+                    signs = np.sign(xr[M])  # sign of signed diff for exiting rows
+                    # majority vote: prefer_higher = True if users preferred the
+                    # patient with the higher raw value on this feature
+                    votes_higher = int(np.sum((signs > 0) & (yexit == 1))
+                                       + np.sum((signs < 0) & (yexit == 0)))
+                    votes_lower  = int(np.sum((signs > 0) & (yexit == 0))
+                                       + np.sum((signs < 0) & (yexit == 1)))
+                    prefer_higher = votes_higher >= votes_lower
+                    # predicted exit_class = what prefer_higher means per-row
+                    pred_exit = np.where((signs > 0) == prefer_higher, 1, 0)
+                    exit_class = int(round(yexit.mean()))  # kept for stats/compat
+                    n_correct = int((yexit == pred_exit).sum())
+                    score = n_correct - (n_exit - n_correct)
+                    purity = n_correct / n_exit
+                    key = (score, purity, n_exit)
+                    if best is None or key > (best[0], best[1], best[2]):
+                        best = (score, purity, n_exit, fidx,
+                                float(thr), prefer_higher, exit_class, M)
             if best is None:
                 break
 
-            score, purity, n_exit, fidx, op, thr, exit_class, M = best
+            score, purity, n_exit, fidx, thr, prefer_higher, exit_class, M = best
             global_exit = idx[M]
             self.nodes.append({
-                "feature":     self.feature_names[fidx],
-                "feature_idx": fidx,
-                "op":          op,
-                "threshold":   thr,
-                "exit_class":  exit_class,
-                "support":     len(global_exit) / n_total,
-                "purity":      purity,
+                "feature":       self.feature_names[fidx],
+                "feature_idx":   fidx,
+                "op":            ">=",
+                "threshold":     thr,
+                "use_abs":       True,
+                "prefer_higher": prefer_higher,
+                "exit_class":    exit_class,
+                "support":       len(global_exit) / n_total,
+                "purity":        purity,
             })
             used.add(fidx)
             remaining[global_exit] = False
@@ -200,7 +214,8 @@ class FastFrugalTree:
             self.default_support = len(idx) / n_total
             self.default_purity = float((yr == self.default_class).mean())
         elif self.nodes:
-            self.default_class = 1 - self.nodes[-1]["exit_class"]
+            last = self.nodes[-1]
+            self.default_class = 1 - (0 if last.get("prefer_higher") else 1) if last.get("use_abs") else 1 - last["exit_class"]
             self.default_support = 0.0
             self.default_purity = 0.5
         return self
@@ -236,7 +251,10 @@ class FastFrugalTree:
 
         for node in self.nodes:
             xs = X[:, node["feature_idx"]]
-            cond = (xs >= node["threshold"]) if node["op"] == ">=" else (xs <= node["threshold"])
+            if node.get("use_abs"):
+                cond = np.abs(xs) >= node["threshold"]
+            else:
+                cond = (xs >= node["threshold"]) if node["op"] == ">=" else (xs <= node["threshold"])
             exit_here = reached & cond
 
             if node.get("refine", {}).get("manual"):
@@ -310,17 +328,33 @@ class FastFrugalTree:
         """
         for i, node in enumerate(self.nodes):
             x = row[node["feature_idx"]]
-            cond = (x >= node["threshold"]) if node["op"] == ">=" else (x <= node["threshold"])
-            if cond:
-                refine = node.get("refine")
-                if refine:
-                    rx = row[refine["feature_idx"]]
-                    rcond = ((rx >= refine["threshold"]) if refine["op"] == ">="
-                             else (rx <= refine["threshold"]))
-                    cls = refine["true_class"] if rcond else refine["false_class"]
-                    purity = refine["purity"] if rcond else refine["false_purity"]
-                    return cls, i, purity, bool(rcond)
-                return node["exit_class"], i, node["purity"], None
+            if node.get("use_abs"):
+                cond = abs(x) >= node["threshold"]
+                if cond:
+                    refine = node.get("refine")
+                    if refine:
+                        rx = row[refine["feature_idx"]]
+                        rcond = ((rx >= refine["threshold"]) if refine["op"] == ">="
+                                 else (rx <= refine["threshold"]))
+                        cls = refine["true_class"] if rcond else refine["false_class"]
+                        purity = refine["purity"] if rcond else refine["false_purity"]
+                        return cls, i, purity, bool(rcond)
+                    # dynamic exit: prefer the patient with higher/lower raw value
+                    ph = node["prefer_higher"]
+                    cls = 1 if (x > 0) == ph else 0
+                    return cls, i, node["purity"], None
+            else:
+                cond = (x >= node["threshold"]) if node["op"] == ">=" else (x <= node["threshold"])
+                if cond:
+                    refine = node.get("refine")
+                    if refine:
+                        rx = row[refine["feature_idx"]]
+                        rcond = ((rx >= refine["threshold"]) if refine["op"] == ">="
+                                 else (rx <= refine["threshold"]))
+                        cls = refine["true_class"] if rcond else refine["false_class"]
+                        purity = refine["purity"] if rcond else refine["false_purity"]
+                        return cls, i, purity, bool(rcond)
+                    return node["exit_class"], i, node["purity"], None
         return self.default_class, -1, self.default_purity, None
 
     def predict(self, X):
@@ -362,12 +396,20 @@ class FastFrugalTree:
         reached = np.ones(len(y), dtype=bool)
         for node in self.nodes:
             xs = X[:, node["feature_idx"]]
-            cond = (xs >= node["threshold"]) if node["op"] == ">=" else (xs <= node["threshold"])
+            if node.get("use_abs"):
+                cond = np.abs(xs) >= node["threshold"]
+            else:
+                cond = (xs >= node["threshold"]) if node["op"] == ">=" else (xs <= node["threshold"])
             exit_here = reached & cond
             n_exit = int(exit_here.sum())
             node["support"] = n_exit / n_total
             if n_exit > 0:
-                node["purity"] = float((y[exit_here] == node["exit_class"]).mean())
+                if node.get("use_abs"):
+                    ph = node["prefer_higher"]
+                    pred = np.where((xs[exit_here] > 0) == ph, 1, 0)
+                    node["purity"] = float((y[exit_here] == pred).mean())
+                else:
+                    node["purity"] = float((y[exit_here] == node["exit_class"]).mean())
             else:
                 node["purity"] = 0.5
 
@@ -418,6 +460,9 @@ class FastFrugalTree:
             nd = {"feature": n["feature"], "op": n["op"],
                   "threshold": float(n["threshold"]), "exit_class": int(n["exit_class"]),
                   "support": float(n.get("support", 0.0)), "purity": float(n.get("purity", 0.5))}
+            if n.get("use_abs"):
+                nd["use_abs"] = True
+                nd["prefer_higher"] = bool(n["prefer_higher"])
             if n.get("refine"):
                 nd["refine"] = self._refine_to_dict(n["refine"])
             nodes_out.append(nd)
@@ -444,10 +489,30 @@ class FastFrugalTree:
                 "feature_idx": name_to_idx.get(n["feature"], 0),
                 "op":          n["op"],
                 "threshold":   float(n["threshold"]),
-                "exit_class":  int(n["exit_class"]),
+                "exit_class":  int(n.get("exit_class", 1)),
                 "support":     float(n.get("support", 0.0)),
                 "purity":      float(n.get("purity", 0.5)),
             }
+            if n.get("use_abs"):
+                node["use_abs"] = True
+                node["prefer_higher"] = bool(n["prefer_higher"])
+            else:
+                # Migrate legacy node: infer direction from op/threshold/exit_class
+                op  = node["op"]
+                thr = node["threshold"]
+                ec  = node["exit_class"]
+                if op == ">=" and thr > 0:
+                    ph = (ec == 1)
+                elif op == "<=" and thr < 0:
+                    ph = (ec == 0)
+                elif op == ">=" and thr <= 0:
+                    ph = (ec == 1)
+                else:
+                    ph = (ec == 0)
+                node["use_abs"]       = True
+                node["prefer_higher"] = ph
+                node["op"]            = ">="
+                node["threshold"]     = abs(thr)
             r = n.get("refine")
             if r:
                 node["refine"] = {
@@ -822,6 +887,61 @@ def summarize_model_changes(old_tree, new_tree):
     if not bits:
         bits.append("Your model looks essentially unchanged after the extra scenarios.")
     return " ".join(bits)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# THINKING EVOLUTION SUMMARY  (across study phases)
+# ════════════════════════════════════════════════════════════════════════════
+
+def explain_thinking_evolution_llm(part1_tree, part2_tree, part3_tree=None):
+    """
+    3-4 warm plain-English sentences describing how the participant's
+    decision model evolved across the study phases.
+
+    When part3_tree is None (2-phase study), describes the Part1→Part2 shift.
+    When part3_tree is provided (3-phase study), describes the full arc.
+    Falls back to the deterministic summarize_model_changes() text.
+    """
+    diff_1_2 = summarize_model_changes(part1_tree, part2_tree)
+
+    if part3_tree is None:
+        fallback = diff_1_2
+        nodes1 = part1_tree.get("nodes", [])
+        nodes2 = part2_tree.get("nodes", [])
+        if not nodes1 and not nodes2:
+            return fallback
+        system = (
+            "You are summarising how a study participant's decision pattern evolved "
+            "across two rounds of an organ-allocation preference study, for the "
+            "participant themselves to read. Write 3-4 warm, plain-English sentences "
+            "(no jargon, no markdown, no bullet points). Describe what stayed stable, "
+            "what shifted, and in which direction. Be descriptive and neutral, not judgmental."
+        )
+        user = f"What changed between Phase 1 and Phase 2:\n{diff_1_2}"
+        return _groq_chat(system, user, max_tokens=260) or fallback
+
+    diff_2_3 = summarize_model_changes(part2_tree, part3_tree)
+    fallback = (
+        f"After the Part 2 scenarios: {diff_1_2} "
+        f"After the Part 3 scenarios: {diff_2_3}"
+    )
+    nodes1 = part1_tree.get("nodes", [])
+    nodes3 = part3_tree.get("nodes", [])
+    if not nodes1 and not nodes3:
+        return fallback
+    system = (
+        "You are summarising how a study participant's decision pattern evolved "
+        "across three rounds of an organ-allocation preference study, for the "
+        "participant themselves to read. Write 3-4 warm, plain-English sentences "
+        "(no jargon, no markdown, no bullet points). Describe what stayed stable, "
+        "what shifted, and in which direction across all three phases. Be "
+        "descriptive and neutral, not judgmental."
+    )
+    user = (
+        f"What changed between Phase 1 and Phase 2:\n{diff_1_2}\n\n"
+        f"What changed between Phase 2 and Phase 3:\n{diff_2_3}"
+    )
+    return _groq_chat(system, user, max_tokens=260) or fallback
 
 
 # ════════════════════════════════════════════════════════════════════════════

@@ -4,257 +4,97 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-
-/* ── Reset & base ────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: #fff;
   color: #0f172a;
-  padding: 4px 0 24px;
+  padding: 8px 0 28px;
 }
 
-/* ── Tree container ──────────────────────────────────────── */
-.fft-tree { max-width: 680px; }
+/* SVG container */
+#svg-wrap { position: relative; width: 100%; }
+#svg-wrap svg { display: block; width: 100%; }
 
-/* ── Step row ────────────────────────────────────────────── */
-.fft-step-row {
-  display: flex;
-  align-items: flex-start;
-  border-radius: 12px;
-  transition: opacity 0.15s;
+/* Edit hint */
+#edit-hint {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 10px;
+  display: none;
 }
 
-/* Drag states */
-.fft-step-row.is-dragging { opacity: 0.38; }
-
-.fft-step-row.drop-above .fft-node-box {
-  border-top: 2.5px solid #2563eb;
-}
-.fft-step-row.drop-below .fft-node-box {
-  border-bottom: 2.5px solid #2563eb;
-}
-
-/* ── Drag handle (editing only) ──────────────────────────── */
-.fft-drag-handle {
-  flex-shrink: 0;
-  width: 26px;
-  display: flex;
-  align-items: flex-start;
-  padding-top: 22px;
-  color: #cbd5e1;
-  font-size: 18px;
-  line-height: 1;
-  user-select: none;
-  cursor: grab;
-  transition: color 0.12s;
-}
-.fft-drag-handle:hover { color: #64748b; }
-.fft-drag-handle:active { cursor: grabbing; }
-
-/* ── Left column ─────────────────────────────────────────── */
-.fft-left-col {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ── Node box ────────────────────────────────────────────── */
-.fft-node-box {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 18px 22px;
+/* Floating edit panel */
+#edit-panel {
+  display: none;
+  position: absolute;
+  left: 36px;
   background: #fff;
-  transition: border-color 0.12s;
-}
-
-.fft-step-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #94a3b8;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-  user-select: none;
-}
-
-/* Read-only content */
-.fft-feature-name {
-  font-size: 18px;
-  font-weight: 600;
-  color: #0f172a;
-  margin-bottom: 6px;
-  line-height: 1.25;
-}
-
-.fft-rule-text {
-  font-size: 15px;
-  font-family: ui-monospace, 'SF Mono', monospace;
-  color: #475569;
-}
-
-/* ── NO ↓ connector ──────────────────────────────────────── */
-.fft-connector {
-  display: flex;
-  align-items: center;
-  height: 48px;
-  padding-left: 28px;
-  gap: 12px;
-}
-
-.fft-connector-line {
-  width: 1px;
-  height: 100%;
-  background: #e2e8f0;
-  flex-shrink: 0;
-}
-
-.fft-connector-label {
-  font-size: 11px;
-  color: #94a3b8;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  user-select: none;
-}
-
-/* ── Right column ────────────────────────────────────────── */
-.fft-right-col {
-  flex-shrink: 0;
-  width: 192px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding-top: 32px;
-  padding-left: 8px;
-}
-
-.fft-yes-connector {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-
-.fft-yes-line {
-  width: 40px;
-  height: 1px;
-  background: #cbd5e1;
-  flex-shrink: 0;
-}
-
-.fft-yes-label {
-  font-size: 11px;
-  color: #94a3b8;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  user-select: none;
-  white-space: nowrap;
-}
-
-/* ── Outcome pills ───────────────────────────────────────── */
-.fft-outcome {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 18px;
-  border-radius: 6px;
-  border: 1.5px solid;
-  font-size: 14px;
-  font-weight: 600;
-  user-select: none;
-}
-
-.fft-outcome-a { color: #b91c1c; border-color: #b91c1c; background: #fff5f5; }
-.fft-outcome-b { color: #1d4ed8; border-color: #1d4ed8; background: #eff6ff; }
-
-/* ── Default box ─────────────────────────────────────────── */
-.fft-default-box {
-  border: 1px solid #e2e8f0;
+  border: 1.5px solid #2563eb;
   border-radius: 10px;
-  padding: 18px 22px;
-  background: #f8fafc;
+  padding: 14px 16px 16px;
+  box-shadow: 0 4px 24px rgba(37,99,235,.15), 0 1px 4px rgba(0,0,0,.08);
+  z-index: 100;
+  min-width: 340px;
+  max-width: 420px;
 }
 
-.fft-default-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #94a3b8;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-  user-select: none;
-}
-
-/* ── Edit controls ───────────────────────────────────────── */
-.fft-edit-feature {
-  appearance: none;
-  -webkit-appearance: none;
-  border: none;
-  border-bottom: 1.5px solid #e2e8f0;
-  background: transparent;
-  font-family: inherit;
-  font-size: 17px;
-  font-weight: 600;
-  color: #0f172a;
-  outline: none;
-  padding: 4px 2px 4px 0;
-  width: 100%;
-  margin-bottom: 12px;
-  cursor: pointer;
-}
-.fft-edit-feature:focus { border-bottom-color: #2563eb; }
-
-.fft-edit-row {
+.ep-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  margin-bottom: 12px;
 }
-
-.fft-edit-op {
-  appearance: none;
-  -webkit-appearance: none;
+.ep-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.ep-actions { display: flex; gap: 6px; align-items: center; }
+.ep-icon-btn {
   border: none;
-  border-bottom: 1.5px solid #e2e8f0;
   background: transparent;
-  font-family: ui-monospace, monospace;
-  font-size: 16px;
-  color: #0f172a;
-  outline: none;
-  padding: 4px 2px;
-  width: 40px;
-  text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
   cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 5px;
+  line-height: 1;
+  transition: color .12s, background .12s;
 }
-.fft-edit-op:focus { border-bottom-color: #2563eb; }
+.ep-icon-btn:hover { color: #0f172a; background: #f1f5f9; }
+.ep-icon-btn.del:hover { color: #b91c1c; background: #fef2f2; }
 
-.fft-edit-thr {
-  border: none;
-  border-bottom: 1.5px solid #e2e8f0;
-  background: transparent;
-  font-family: ui-monospace, monospace;
-  font-size: 16px;
+.ep-field-label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+
+.ep-select, .ep-input {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 14px;
   color: #0f172a;
+  background: #fff;
   outline: none;
-  padding: 4px 2px;
-  width: 80px;
+  transition: border-color .12s;
 }
-.fft-edit-thr:focus { border-bottom-color: #2563eb; }
-.fft-edit-thr::-webkit-outer-spin-button,
-.fft-edit-thr::-webkit-inner-spin-button { -webkit-appearance: none; }
+.ep-select:focus, .ep-input:focus { border-color: #2563eb; }
+.ep-select.feat { width: 100%; margin-bottom: 10px; }
+.ep-cond-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.ep-select.op  { width: 64px; }
+.ep-input.thr  { width: 90px; font-family: monospace; }
 
-/* Re-enable text selection inside interactive controls
-   (overrides the row-level user-select:none set in JS for drag) */
-.fft-edit-feature, .fft-edit-op, .fft-edit-thr {
-  user-select: text;
-  -webkit-user-select: text;
-  cursor: auto;
-}
-
-/* ── Outcome toggle buttons ──────────────────────────────── */
-.fft-toggle-row { display: flex; gap: 8px; flex-wrap: wrap; }
-
-.fft-toggle {
-  padding: 7px 14px;
+.ep-outcome-label { font-size: 11px; color: #94a3b8; font-weight: 500; margin-bottom: 6px; }
+.ep-outcome-row { display: flex; gap: 6px; }
+.ep-toggle {
+  padding: 6px 14px;
   border-radius: 5px;
   border: 1.5px solid;
   font-size: 13px;
@@ -262,351 +102,946 @@ body {
   cursor: pointer;
   background: transparent;
   font-family: inherit;
-  line-height: 1;
-  transition: background 0.12s, color 0.12s;
+  transition: background .12s, color .12s;
 }
+.ep-toggle-a         { color: #b91c1c; border-color: #b91c1c; }
+.ep-toggle-a.ep-on   { background: #b91c1c; color: #fff; }
+.ep-toggle-b         { color: #1d4ed8; border-color: #1d4ed8; }
+.ep-toggle-b.ep-on   { background: #1d4ed8; color: #fff; }
 
-.fft-toggle-a         { color: #b91c1c; border-color: #b91c1c; }
-.fft-toggle-a.fft-on  { background: #b91c1c; color: #fff; }
-.fft-toggle-b         { color: #1d4ed8; border-color: #1d4ed8; }
-.fft-toggle-b.fft-on  { background: #1d4ed8; color: #fff; }
+.ep-sep { border: none; border-top: 1px dashed #e2e8f0; margin: 12px 0; }
 
-/* ── Apply button ────────────────────────────────────────── */
-.fft-apply-btn {
-  margin-top: 28px;
+.ep-refine-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.ep-add-refine {
+  font-size: 12px;
+  color: #2563eb;
+  background: transparent;
+  border: 1px dashed #93c5fd;
+  border-radius: 5px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .12s;
+}
+.ep-add-refine:hover { background: #eff6ff; }
+.ep-rm-refine {
+  font-size: 11px;
+  color: #94a3b8;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color .12s;
+}
+.ep-rm-refine:hover { color: #b91c1c; }
+
+/* Bottom toolbar */
+#toolbar { display: none; flex-direction: column; gap: 8px; margin-top: 18px; }
+
+.btn-add {
   width: 100%;
-  padding: 14px;
+  padding: 10px;
+  background: transparent;
+  color: #2563eb;
+  border: 1.5px dashed #93c5fd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .12s, border-color .12s;
+}
+.btn-add:hover { background: #eff6ff; border-color: #2563eb; }
+
+.btn-apply {
+  width: 100%;
+  padding: 13px;
   background: #2563eb;
   color: #fff;
   border: none;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  letter-spacing: 0.01em;
-  transition: background 0.12s;
+  transition: background .12s;
 }
-.fft-apply-btn:hover { background: #1d4ed8; }
-.fft-apply-btn.fft-saved { background: #16a34a; }
+.btn-apply:hover { background: #1d4ed8; }
+.btn-apply.saved { background: #15803d; }
 
-/* ── Drag hint (editing mode only) ──────────────────────── */
-.fft-drag-hint {
-  font-size: 12px;
-  color: #94a3b8;
-  margin-bottom: 16px;
-  padding-left: 28px;
-  user-select: none;
+/* Default leaf click area highlight */
+.fft-default-clickable { cursor: pointer; }
+
+/* Shared sub-panel style (leaf panel, refine panel) */
+.sub-panel {
+  display: none;
+  position: absolute;
+  background: #fff;
+  border: 1.5px solid #2563eb;
+  border-radius: 10px;
+  padding: 12px 14px 14px;
+  box-shadow: 0 4px 20px rgba(37,99,235,.15), 0 1px 4px rgba(0,0,0,.08);
+  z-index: 100;
+  min-width: 260px;
 }
+.sub-panel.visible { display: block; }
 
-
+.btn-insert-step {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  background: transparent;
+  color: #2563eb;
+  border: 1.5px dashed #93c5fd;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .12s, border-color .12s;
+}
+.btn-insert-step:hover { background: #eff6ff; border-color: #2563eb; }
 </style>
 </head>
 <body>
-<div id="root"></div>
+
+<div id="edit-hint">Click any step to edit it</div>
+<div id="svg-wrap"></div>
+
+<!-- Floating edit panel (shared, repositioned per node) -->
+<div id="edit-panel">
+  <div class="ep-header">
+    <span class="ep-title" id="ep-step-label">STEP 1</span>
+    <div class="ep-actions">
+      <button class="ep-icon-btn del" id="ep-del" title="Delete this step">🗑</button>
+      <button class="ep-icon-btn"    id="ep-close" title="Close">✕</button>
+    </div>
+  </div>
+
+  <div class="ep-field-label">Factor</div>
+  <select class="ep-select feat" id="ep-feat"></select>
+
+  <div class="ep-field-label">Condition</div>
+  <div class="ep-cond-row">
+    <select class="ep-select op" id="ep-op">
+      <option value=">=">≥</option>
+      <option value="<=">≤</option>
+    </select>
+    <input class="ep-input thr" id="ep-thr" type="number" step="0.5">
+  </div>
+
+  <div class="ep-outcome-label">When YES, prefer:</div>
+  <div class="ep-outcome-row">
+    <button class="ep-toggle ep-toggle-a" id="ep-out-a">→ A</button>
+    <button class="ep-toggle ep-toggle-b" id="ep-out-b">→ B</button>
+  </div>
+
+  <hr class="ep-sep">
+  <div id="ep-refine"></div>
+</div>
+
+<!-- Default-class mini panel -->
+<div id="default-panel" style="display:none;position:absolute;left:36px;background:#fff;
+  border:1.5px solid #2563eb;border-radius:8px;padding:10px 14px;
+  box-shadow:0 4px 16px rgba(37,99,235,.15);z-index:100">
+  <div class="ep-field-label" style="margin-bottom:6px">Default preference (when no step fires):</div>
+  <div class="ep-outcome-row">
+    <button class="ep-toggle ep-toggle-a" id="def-out-a">→ A</button>
+    <button class="ep-toggle ep-toggle-b" id="def-out-b">→ B</button>
+  </div>
+  <div style="margin-top:10px;text-align:right">
+    <button class="ep-icon-btn" id="def-close">Done ✓</button>
+  </div>
+</div>
+
+<!-- YES-leaf panel: toggle outcome or insert a step here -->
+<div id="leaf-panel" class="sub-panel" style="left:490px">
+  <div class="ep-header">
+    <span class="ep-title" id="lp-title">STEP 1 · YES EXIT</span>
+    <button class="ep-icon-btn" id="lp-close">✕</button>
+  </div>
+  <div class="ep-outcome-label">Outcome when YES fires:</div>
+  <div class="ep-outcome-row">
+    <button class="ep-toggle ep-toggle-a" id="lp-out-a">→ A</button>
+    <button class="ep-toggle ep-toggle-b" id="lp-out-b">→ B</button>
+  </div>
+  <button class="btn-insert-step" id="lp-insert">＋ Insert a decision step here</button>
+</div>
+
+<!-- Tie-breaker (refine) edit panel -->
+<div id="refine-panel" class="sub-panel" style="left:490px">
+  <div class="ep-header">
+    <span class="ep-title" id="rp-title">TIE-BREAKER · STEP 1</span>
+    <div class="ep-actions">
+      <button class="ep-icon-btn del" id="rp-del" title="Remove tie-breaker">🗑</button>
+      <button class="ep-icon-btn" id="rp-close">✕</button>
+    </div>
+  </div>
+  <div class="ep-field-label">Factor</div>
+  <select class="ep-select feat" id="rp-feat"></select>
+  <div class="ep-field-label">Condition</div>
+  <div class="ep-cond-row">
+    <select class="ep-select op" id="rp-op">
+      <option value=">=">≥</option>
+      <option value="<=">≤</option>
+    </select>
+    <input class="ep-input thr" id="rp-thr" type="number" step="0.5">
+  </div>
+  <div class="ep-outcome-label">Prefer when true:</div>
+  <div class="ep-outcome-row">
+    <button class="ep-toggle ep-toggle-a" id="rp-out-a">→ A</button>
+    <button class="ep-toggle ep-toggle-b" id="rp-out-b">→ B</button>
+  </div>
+</div>
+
+<div id="toolbar">
+  <button class="btn-add"   id="btn-add">＋  Add decision step</button>
+  <button class="btn-apply" id="btn-apply">Apply changes</button>
+</div>
 
 <script>
 'use strict';
 
-/* ── State ─────────────────────────────────────────────────── */
-var tree    = null;
-var editing = false;
-var params  = [];
+// ── State ─────────────────────────────────────────────────────────
+var tree         = null;
+var editing      = false;
+var params       = [];
+var labels       = {};   // { param_base: [higher_label, lower_label] }
+var selectedNode = null;  // index | null
 
-/* drag-and-drop state */
-var dragIndex     = null;
-var dragOverIndex = null;
+// ── SVG geometry (mirrors Python fft_svg) ─────────────────────────
+var PAD  = 30, ROW_H = 110;
+var NX   = 36, NW = 372, NH = 66;
+var LX   = 540, LW = 150, LH = 46;
+var RX, RW = 190, RH = 54;   // refine box
+var MX, MW = 108, MH = 34;   // mini leaves
+RX = LX + LW + 34;
+MX = RX + RW + 26;
 
-/* ── Helpers ───────────────────────────────────────────────── */
+var C = {
+  text: '#0f172a', card: '#f8fafc', border: '#e2e8f0',
+  dim:  '#64748b', muted: '#94a3b8', accent: '#2563eb',
+  a: '#b91c1c', b: '#1d4ed8',
+};
 
-function prettyFeature(name) {
-  var base = name.replace(/_diff$/, '').replace(/_/g, ' ');
-  return base.charAt(0).toUpperCase() + base.slice(1) + ' (A − B)';
+// ── Helpers ────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
 }
-
-function el(tag, props) {
-  var node = document.createElement(tag);
-  if (!props) return node;
-  Object.keys(props).forEach(function(k) {
-    if (k === 'cls')         node.className   = props[k];
-    else if (k === 'text')   node.textContent = props[k];
-    else if (k === 'style')  node.style.cssText = props[k];
-    else                     node.setAttribute(k, props[k]);
-  });
-  return node;
+function fmt(x) {
+  var r = Math.round(parseFloat(x) * 100) / 100;
+  return r === Math.floor(r) ? String(Math.floor(r)) : String(r);
 }
+function lf(cls)   { return cls === 1 ? C.a : C.b; }
+function lt(cls)   { return cls === 1 ? 'Prefer A' : 'Prefer B'; }
 
-function append(parent) {
-  var children = Array.prototype.slice.call(arguments, 1);
-  children.forEach(function(c) { if (c) parent.appendChild(c); });
-  return parent;
-}
+// Compact SVG labels that fit inside tight leaf boxes
+var SHORT_LABELS = {
+  age:               ['Older',        'Younger'],
+  years_waiting:     ['Longer wait',  'Shorter wait'],
+  health_score:      ['Healthier',    'Less healthy'],
+  dependents:        ['More deps.',   'Fewer deps.'],
+  prior_transplants: ['More tx.',     'Fewer tx.'],
+  urgency_score:     ['More urgent',  'Less urgent'],
+};
 
-/* ── Outcome pill ───────────────────────────────────────────── */
-function outcomePill(exitClass) {
-  return el('div', {
-    cls:  'fft-outcome ' + (exitClass === 1 ? 'fft-outcome-a' : 'fft-outcome-b'),
-    text: exitClass === 1 ? 'Prefer A' : 'Prefer B',
-  });
-}
-
-/* ── Toggle (editing) ───────────────────────────────────────── */
-function outcomeToggle(exitClass, onChange) {
-  var btnA = el('button', { cls: 'fft-toggle fft-toggle-a' + (exitClass === 1 ? ' fft-on' : ''), text: '→ A' });
-  var btnB = el('button', { cls: 'fft-toggle fft-toggle-b' + (exitClass === 0 ? ' fft-on' : ''), text: '→ B' });
-  function setActive(v) {
-    btnA.className = 'fft-toggle fft-toggle-a' + (v === 1 ? ' fft-on' : '');
-    btnB.className = 'fft-toggle fft-toggle-b' + (v === 0 ? ' fft-on' : '');
-    onChange(v);
+function outcomeLabel(node, short) {
+  if (node && node.use_abs) {
+    var base = (node.feature || '').replace('_diff', '');
+    if (short) {
+      var sp = SHORT_LABELS[base];
+      if (sp) return node.prefer_higher !== false ? sp[0] : sp[1];
+      return node.prefer_higher !== false ? 'Higher' : 'Lower';
+    }
+    var pair = labels[base];
+    if (pair) {
+      var lbl = node.prefer_higher !== false ? pair[0] : pair[1];
+      return lbl.charAt(0).toUpperCase() + lbl.slice(1);
+    }
+    return node.prefer_higher !== false ? 'Higher value' : 'Lower value';
   }
-  btnA.addEventListener('click', function() { setActive(1); });
-  btnB.addEventListener('click', function() { setActive(0); });
-  return append(el('div', { cls: 'fft-toggle-row' }), btnA, btnB);
+  return (node && node.exit_class === 1) ? 'Prefer A' : 'Prefer B';
 }
 
-/* ── Drag-and-drop handlers ─────────────────────────────────── */
-
-function clearDragClasses() {
-  document.querySelectorAll('.fft-step-row').forEach(function(r) {
-    r.classList.remove('is-dragging', 'drop-above', 'drop-below');
-  });
+function nodeCondText(node) {
+  if (node && node.use_abs) return '|Δ| ≥ ' + fmt(node.threshold);
+  var op = (node && node.op === '>=') ? '≥' : '≤';
+  return op + ' ' + fmt(node ? node.threshold : 0);
 }
 
-function onDragStart(e, i) {
-  dragIndex = i;
-  e.dataTransfer.effectAllowed = 'move';
-  /* Store index so drop can read it cross-browser */
-  try { e.dataTransfer.setData('text/plain', String(i)); } catch (_) {}
-  /* Delay opacity so the browser captures the ghost BEFORE we fade the row */
-  setTimeout(function() {
-    var rows = document.querySelectorAll('.fft-step-row');
-    if (rows[i]) rows[i].classList.add('is-dragging');
-  }, 0);
+function refineOutcomeLabel(r, isTrueBranch) {
+  var op  = r.op  || '>=';
+  var thr = parseFloat(r.threshold) || 0;
+  var tc  = r.true_class;
+  var feature = r.feature || '';
+  var base = feature.replace('_diff', '');
+  var phTrue;
+  if (op === '>=' && thr > 0)      phTrue = (tc === 1);
+  else if (op === '<=' && thr < 0) phTrue = (tc === 0);
+  else                              phTrue = (tc === 1);
+  var preferHigher = isTrueBranch ? phTrue : !phTrue;
+  var sp = SHORT_LABELS[base];
+  if (sp) return preferHigher ? sp[0] : sp[1];
+  return preferHigher ? 'Higher' : 'Lower';
 }
 
-function onDragOver(e, i) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  if (dragIndex === null || dragIndex === i) return;
-  if (dragOverIndex === i) return;
-  dragOverIndex = i;
-  clearDragClasses();
-  var rows = document.querySelectorAll('.fft-step-row');
-  if (rows[dragIndex]) rows[dragIndex].classList.add('is-dragging');
-  if (rows[i]) {
-    /* drop-above = dragged item will land above this row */
-    rows[i].classList.add(dragIndex > i ? 'drop-above' : 'drop-below');
-  }
+function pretty(f) {
+  var base = f.endsWith('_diff') ? f.slice(0,-5) : f;
+  return base.replace(/_/g,' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
 }
 
-function onDrop(e, i) {
-  e.preventDefault();
-  e.stopPropagation();
-  clearDragClasses();
-  if (dragIndex === null || dragIndex === i) { dragIndex = null; return; }
-  /* reorder tree.nodes: move dragIndex to i */
-  var nodes  = tree.nodes;
-  var moved  = nodes.splice(dragIndex, 1)[0];
-  nodes.splice(i, 0, moved);
-  dragIndex     = null;
-  dragOverIndex = null;
-  render();
-}
+// ── SVG builder ────────────────────────────────────────────────────
+function buildSVG() {
+  var n  = tree.nodes.length;
+  var hr = tree.nodes.some(function(nd){ return nd.refine; });
+  var W  = hr ? MX + MW + 40 : LX + LW + 40;
+  var H  = PAD + n * ROW_H + 150;
+  var s  = [];
 
-function onDragEnd() {
-  clearDragClasses();
-  dragIndex     = null;
-  dragOverIndex = null;
-}
+  s.push('<svg viewBox="0 0 '+W+' '+H+'" width="100%" xmlns="http://www.w3.org/2000/svg" '
+       + 'font-family="-apple-system,Segoe UI,Roboto,sans-serif">');
+  s.push('<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="none"/>');
+  s.push('<defs>'
+       + '<marker id="ah" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">'
+       + '<path d="M0,0 L7,3 L0,6 Z" fill="'+C.muted+'"/></marker>'
+       + '</defs>');
 
-/* ── Build one step row ──────────────────────────────────────── */
+  for (var i = 0; i < n; i++) {
+    var nd = tree.nodes[i];
+    var y  = PAD + i * ROW_H;
+    var cy = y + NH / 2;
+    var hR = nd.refine;
+    var sel = (editing && selectedNode === i);
+    var bk = sel ? C.accent : C.border;
+    var bw = sel ? '2.5' : '1.2';
+    var cur = editing ? ' style="cursor:pointer"' : '';
+    var cond = hR
+      ? '|A − B| ≤ ' + fmt(Math.abs(nd.threshold))
+      : nodeCondText(nd);
 
-function buildStepRow(node, i) {
-  var row = el('div', { cls: 'fft-step-row' });
+    // Decision node group — data-node for JS click targeting
+    s.push('<g data-node="'+i+'"'+cur+'>');
+    s.push('<rect x="'+NX+'" y="'+y+'" rx="11" width="'+NW+'" height="'+NH+'" '
+         + 'fill="'+C.card+'" stroke="'+bk+'" stroke-width="'+bw+'"/>');
+    s.push('<text x="'+(NX+16)+'" y="'+(y+22)+'" font-size="13" fill="'+C.muted+'" '
+         + 'font-weight="600">STEP '+(i+1)+'</text>');
+    s.push('<text x="'+(NX+16)+'" y="'+(y+44)+'" font-size="15.5" fill="'+C.text+'" '
+         + 'font-weight="600">'+esc(pretty(nd.feature))+' (Δ A−B)</text>');
+    s.push('<text x="'+(NX+16)+'" y="'+(y+62)+'" font-size="14" fill="'+C.dim+'" '
+         + 'font-family="monospace">'+esc(cond)+'</text>');
+    s.push('</g>');
 
-  /* ── drag handle (editing only) ── */
-  if (editing) {
-    /* Always-on draggable — no mousedown trick needed.
-       Inputs/selects absorb their own clicks so they still work normally;
-       the drag only fires when the user clicks-and-moves a non-interactive area. */
-    row.setAttribute('draggable', 'true');
-    /* Prevent text-selection fighting with drag start */
-    row.style.userSelect        = 'none';
-    row.style.webkitUserSelect  = 'none';
+    // YES → leaf or refine
+    var tx = hR ? RX-6 : LX-6;
+    s.push('<line x1="'+(NX+NW)+'" y1="'+cy+'" x2="'+tx+'" y2="'+cy+'" '
+         + 'stroke="'+C.muted+'" stroke-width="1.3" marker-end="url(#ah)"/>');
+    s.push('<text x="'+(NX+NW+12)+'" y="'+(cy-8)+'" font-size="12.5" '
+         + 'fill="'+C.muted+'" font-weight="600">YES</text>');
 
-    row.addEventListener('dragstart', function(e) { onDragStart(e, i); });
-    row.addEventListener('dragover',  function(e) { onDragOver(e, i); });
-    row.addEventListener('drop',      function(e) { onDrop(e, i); });
-    row.addEventListener('dragend',   function()  { onDragEnd(); });
+    if (!hR) {
+      var f = lf(nd.exit_class);
+      var leafCur = editing ? ' style="cursor:pointer"' : '';
+      s.push('<g data-leaf="'+i+'"'+leafCur+'>');
+      s.push('<rect x="'+LX+'" y="'+(cy-LH/2)+'" rx="10" width="'+LW+'" height="'+LH+'" fill="'+f+'" opacity=".16"/>');
+      s.push('<rect x="'+LX+'" y="'+(cy-LH/2)+'" rx="10" width="'+LW+'" height="'+LH+'" fill="none" stroke="'+f+'" stroke-width="1.4"/>');
+      s.push('<text x="'+(LX+LW/2)+'" y="'+(cy+5)+'" font-size="13" text-anchor="middle" fill="'+f+'" font-weight="700">'+esc(outcomeLabel(nd,true))+'</text>');
+      if (editing) {
+        s.push('<text x="'+(LX+LW-14)+'" y="'+(cy-LH/2+12)+'" font-size="11" fill="'+f+'" opacity=".7" text-anchor="middle">✎</text>');
+      }
+      s.push('</g>');
+    } else {
+      var r=hR, ry=cy-RH/2, tcy=cy-30, fcy=cy+30;
+      var tf=lf(r.true_class), ff=lf(r.false_class);
+      var refineCur = editing ? ' style="cursor:pointer"' : '';
+      s.push('<g data-refine="'+i+'"'+refineCur+'>');
+      s.push('<rect x="'+RX+'" y="'+ry+'" rx="10" width="'+RW+'" height="'+RH+'" '
+           + 'fill="'+C.card+'" stroke="'+C.border+'" stroke-width="1.3" stroke-dasharray="4 3"/>');
+      s.push('<text x="'+(RX+12)+'" y="'+(ry+18)+'" font-size="11.5" fill="'+C.muted+'" font-weight="700">CLOSE CALL — TIE-BREAKER</text>');
+      s.push('<text x="'+(RX+12)+'" y="'+(ry+36)+'" font-size="14" fill="'+C.text+'" font-weight="600">'+esc(pretty(r.feature))+'</text>');
+      s.push('<text x="'+(RX+12)+'" y="'+(ry+51)+'" font-size="12.5" fill="'+C.dim+'" font-family="monospace">'+esc(r.op)+' '+fmt(r.threshold)+'</text>');
+      if (editing) {
+        s.push('<text x="'+(RX+RW-10)+'" y="'+(ry+14)+'" font-size="11" fill="'+C.muted+'" text-anchor="middle">✎</text>');
+      }
+      s.push('</g>');
+      // YES mini
+      s.push('<line x1="'+(RX+RW)+'" y1="'+(ry+12)+'" x2="'+(MX-6)+'" y2="'+tcy+'" stroke="'+C.muted+'" stroke-width="1.2" marker-end="url(#ah)"/>');
+      s.push('<text x="'+(RX+RW+6)+'" y="'+(tcy-6)+'" font-size="11.5" fill="'+C.muted+'" font-weight="600">YES</text>');
+      s.push('<rect x="'+MX+'" y="'+(tcy-MH/2)+'" rx="8" width="'+MW+'" height="'+MH+'" fill="'+tf+'" opacity=".16"/>');
+      s.push('<rect x="'+MX+'" y="'+(tcy-MH/2)+'" rx="8" width="'+MW+'" height="'+MH+'" fill="none" stroke="'+tf+'" stroke-width="1.3"/>');
+      s.push('<text x="'+(MX+MW/2)+'" y="'+(tcy+5)+'" font-size="12" text-anchor="middle" fill="'+tf+'" font-weight="700">'+esc(refineOutcomeLabel(r,true))+'</text>');
+      // NO mini
+      s.push('<line x1="'+(RX+RW)+'" y1="'+(ry+RH-12)+'" x2="'+(MX-6)+'" y2="'+fcy+'" stroke="'+C.muted+'" stroke-width="1.2" marker-end="url(#ah)"/>');
+      s.push('<text x="'+(RX+RW+6)+'" y="'+(fcy+16)+'" font-size="11.5" fill="'+C.muted+'" font-weight="600">NO</text>');
+      s.push('<rect x="'+MX+'" y="'+(fcy-MH/2)+'" rx="8" width="'+MW+'" height="'+MH+'" fill="'+ff+'" opacity=".16"/>');
+      s.push('<rect x="'+MX+'" y="'+(fcy-MH/2)+'" rx="8" width="'+MW+'" height="'+MH+'" fill="none" stroke="'+ff+'" stroke-width="1.3"/>');
+      s.push('<text x="'+(MX+MW/2)+'" y="'+(fcy+5)+'" font-size="12" text-anchor="middle" fill="'+ff+'" font-weight="700">'+esc(refineOutcomeLabel(r,false))+'</text>');
+    }
 
-    var handle = el('div', { cls: 'fft-drag-handle', text: '⠿' });
-    append(row, handle);
-  }
-
-  /* ── left column: box + connector ── */
-  var leftCol  = el('div', { cls: 'fft-left-col' });
-  var box      = el('div', { cls: 'fft-node-box' });
-  var stepLbl  = el('div', { cls: 'fft-step-label', text: 'STEP ' + (i + 1) });
-  append(box, stepLbl);
-
-  if (editing) {
-    /* Feature dropdown */
-    var featureSel = document.createElement('select');
-    featureSel.className = 'fft-edit-feature';
-    params.forEach(function(p) {
-      var opt  = document.createElement('option');
-      opt.value       = p + '_diff';
-      opt.textContent = prettyFeature(p + '_diff');
-      if (opt.value === node.feature) opt.selected = true;
-      featureSel.appendChild(opt);
-    });
-    featureSel.addEventListener('change', function(e) {
-      tree.nodes[i].feature = e.target.value;
-    });
-    box.appendChild(featureSel);
-
-    /* Operator + threshold */
-    var opSel = document.createElement('select');
-    opSel.className = 'fft-edit-op';
-    [['>=', '≥'], ['<=', '≤']].forEach(function(pair) {
-      var opt = document.createElement('option');
-      opt.value = pair[0]; opt.textContent = pair[1];
-      if (pair[0] === node.op) opt.selected = true;
-      opSel.appendChild(opt);
-    });
-    opSel.addEventListener('change', function(e) {
-      tree.nodes[i].op = e.target.value;
-    });
-
-    var thrInput = document.createElement('input');
-    thrInput.className = 'fft-edit-thr';
-    thrInput.type  = 'number';
-    thrInput.value = node.threshold;
-    thrInput.step  = '0.5';
-    thrInput.addEventListener('input', function(e) {
-      var v = parseFloat(e.target.value);
-      if (!isNaN(v)) tree.nodes[i].threshold = v;
-    });
-
-    append(box, append(el('div', { cls: 'fft-edit-row' }), opSel, thrInput));
-  } else {
-    var op = node.op === '>=' ? '≥' : '≤';
-    append(box,
-      el('div', { cls: 'fft-feature-name', text: prettyFeature(node.feature) }),
-      el('div', { cls: 'fft-rule-text',    text: op + ' ' + node.threshold.toFixed(2) })
-    );
+    // NO ↓ connector
+    var ny2 = y + ROW_H;
+    s.push('<line x1="'+(NX+24)+'" y1="'+(y+NH)+'" x2="'+(NX+24)+'" y2="'+(ny2-4)+'" '
+         + 'stroke="'+C.muted+'" stroke-width="1.3" marker-end="url(#ah)"/>');
+    s.push('<text x="'+(NX+32)+'" y="'+(y+NH+24)+'" font-size="12.5" fill="'+C.muted+'" font-weight="600">NO</text>');
   }
 
-  /* NO ↓ connector */
-  var connector = append(
-    el('div', { cls: 'fft-connector' }),
-    el('div', { cls: 'fft-connector-line' }),
-    el('span', { cls: 'fft-connector-label', text: 'NO ↓' })
-  );
-  append(leftCol, box, connector);
+  // Default leaf (clickable in editing mode)
+  var dy  = PAD + n * ROW_H;
+  var dcl = tree.default_class;
+  var df  = lf(dcl);
+  var dx  = NX + 24 - LW/2 + 14;
+  var defCur = editing ? ' style="cursor:pointer"' : '';
+  s.push('<g id="default-leaf"'+defCur+'>');
+  s.push('<rect x="'+dx+'" y="'+(dy+4)+'" rx="10" width="'+LW+'" height="'+LH+'" fill="'+df+'" opacity=".16"/>');
+  s.push('<rect x="'+dx+'" y="'+(dy+4)+'" rx="10" width="'+LW+'" height="'+LH+'" fill="none" stroke="'+df+'" stroke-width="1.4"/>');
+  s.push('<text x="'+(dx+LW/2)+'" y="'+(dy+4+LH/2+5)+'" font-size="14" text-anchor="middle" fill="'+df+'" font-weight="700">Default · '+lt(dcl)+'</text>');
+  s.push('</g>');
 
-  /* ── right column: YES → exit ── */
-  var rightCol = el('div', { cls: 'fft-right-col' });
-  var yesConn  = append(
-    el('div', { cls: 'fft-yes-connector' }),
-    el('div', { cls: 'fft-yes-line' }),
-    el('span', { cls: 'fft-yes-label', text: 'YES →' })
-  );
-  var exitWidget = editing
-    ? outcomeToggle(node.exit_class, function(v) { tree.nodes[i].exit_class = v; })
-    : outcomePill(node.exit_class);
-  append(rightCol, yesConn, exitWidget);
-
-  append(row, leftCol, rightCol);
-  return row;
+  s.push('</svg>');
+  return s.join('');
 }
 
-/* ── Main render ─────────────────────────────────────────────── */
-
+// ── Render ────────────────────────────────────────────────────────
 function render() {
-  var root = document.getElementById('root');
-  root.innerHTML = '';
-
   if (!tree || !tree.nodes || !tree.nodes.length) {
-    root.appendChild(el('div', {
-      style: 'color:#94a3b8;font-size:14px;padding:12px 0',
-      text:  'No model available yet.',
-    }));
+    document.getElementById('svg-wrap').innerHTML =
+      '<div style="color:#94a3b8;font-size:14px;padding:12px">No model available.</div>';
     updateHeight();
     return;
   }
 
-  var fftDiv = el('div', { cls: 'fft-tree' });
+  document.getElementById('svg-wrap').innerHTML = buildSVG();
+  document.getElementById('edit-hint').style.display  = editing ? 'block' : 'none';
+  document.getElementById('toolbar').style.display    = editing ? 'flex'  : 'none';
+  document.getElementById('leaf-panel').classList.remove('visible');
+  document.getElementById('refine-panel').classList.remove('visible');
 
-  /* Drag hint */
   if (editing) {
-    fftDiv.appendChild(el('div', {
-      cls:  'fft-drag-hint',
-      text: 'Drag ⠿ to reorder steps',
-    }));
-  }
-
-  /* Step rows */
-  tree.nodes.forEach(function(node, i) {
-    fftDiv.appendChild(buildStepRow(node, i));
-  });
-
-  /* Default box */
-  var defLabel  = el('div', { cls: 'fft-default-label', text: 'DEFAULT — if no step applies' });
-  var defWidget = editing
-    ? outcomeToggle(tree.default_class, function(v) { tree.default_class = v; })
-    : outcomePill(tree.default_class);
-  append(fftDiv, append(el('div', { cls: 'fft-default-box' }), defLabel, defWidget));
-
-  /* Apply button (editing) */
-  if (editing) {
-    var applyBtn = el('button', { cls: 'fft-apply-btn', text: 'Apply changes' });
-    applyBtn.addEventListener('click', function() {
-      window.parent.postMessage(
-        { isStreamlitMessage: true, type: 'streamlit:setComponentValue', value: tree, dataType: 'json' },
-        '*'
-      );
-      applyBtn.textContent = '✓ Changes applied';
-      applyBtn.classList.add('fft-saved');
-      setTimeout(function() {
-        applyBtn.textContent = 'Apply changes';
-        applyBtn.classList.remove('fft-saved');
-      }, 3000);
+    // Node click handlers
+    document.querySelectorAll('[data-node]').forEach(function(g) {
+      var idx = parseInt(g.getAttribute('data-node'), 10);
+      g.addEventListener('click', function(e) { e.stopPropagation(); openPanel(idx); });
     });
-    fftDiv.appendChild(applyBtn);
+
+    // Default leaf click → default panel
+    var defLeaf = document.getElementById('default-leaf');
+    if (defLeaf) {
+      defLeaf.addEventListener('click', function(e) {
+        e.stopPropagation();
+        openDefaultPanel();
+      });
+    }
+
+    // Click on SVG background closes panels
+    document.getElementById('svg-wrap').addEventListener('click', function() {
+      closePanel();
+      closeDefaultPanel();
+    });
   }
 
-  root.appendChild(fftDiv);
   updateHeight();
 }
 
-/* ── Height sync ─────────────────────────────────────────────── */
+// ── Edit panel ────────────────────────────────────────────────────
+function openPanel(i) {
+  closeLeafPanel(); closeRefinePanel(); closeDefaultPanel();
+  selectedNode = i;
+  var nd = tree.nodes[i];
 
-function updateHeight() {
-  requestAnimationFrame(function() {
-    var h = Math.max(document.body.scrollHeight, 100);
-    window.parent.postMessage({ isStreamlitMessage: true, type: 'streamlit:setFrameHeight', height: h }, '*');
+  document.getElementById('ep-step-label').textContent = 'STEP ' + (i + 1);
+  document.getElementById('ep-del').style.display = tree.nodes.length > 1 ? '' : 'none';
+
+  // Feature
+  var featSel = document.getElementById('ep-feat');
+  featSel.innerHTML = '';
+  params.forEach(function(p) {
+    var opt = document.createElement('option');
+    opt.value = p + '_diff'; opt.textContent = pretty(p + '_diff');
+    if (opt.value === nd.feature) opt.selected = true;
+    featSel.appendChild(opt);
+  });
+
+  // For abs nodes op is always >=; show a fixed label instead of the dropdown
+  var opRow = document.querySelector('.ep-cond-row');
+  var opSel = document.getElementById('ep-op');
+  if (nd.use_abs) {
+    opSel.style.display = 'none';
+    var absLbl = document.getElementById('ep-abs-label');
+    if (!absLbl) {
+      absLbl = document.createElement('span');
+      absLbl.id = 'ep-abs-label';
+      absLbl.style.cssText = 'font-family:monospace;font-size:14px;color:#64748b;padding:6px 4px;white-space:nowrap';
+      opRow.insertBefore(absLbl, opRow.firstChild);
+    }
+    absLbl.textContent = '|Δ| ≥';
+    absLbl.style.display = '';
+  } else {
+    opSel.style.display = '';
+    var absLbl2 = document.getElementById('ep-abs-label');
+    if (absLbl2) absLbl2.style.display = 'none';
+    opSel.value = nd.op || '>=';
+  }
+  document.getElementById('ep-thr').value = Math.abs(nd.threshold);
+
+  // Outcome toggle: use prefer_higher for abs nodes, exit_class for legacy
+  var aIsOn = nd.use_abs ? nd.prefer_higher !== false : nd.exit_class === 1;
+  setOutcomeToggle('ep-out-a', 'ep-out-b', aIsOn);
+
+  // Update outcome button labels to be semantic when use_abs
+  _refreshOutcomeLabels(nd.feature, 'ep-out-a', 'ep-out-b');
+
+  buildRefine(i, nd.refine);
+
+  // Position: below the selected node, within svg-wrap
+  var yPos = PAD + i * ROW_H + NH + 6;
+  var panel = document.getElementById('edit-panel');
+  panel.style.top  = yPos + 'px';
+  panel.style.display = 'block';
+
+  // Re-render SVG to show selected border
+  document.getElementById('svg-wrap').innerHTML = buildSVG();
+  reAttachNodeClicks();
+  updateHeight();
+}
+
+// Set semantic text on outcome toggle buttons based on node feature
+function _refreshOutcomeLabels(feature, idA, idB) {
+  var base = (feature || '').replace('_diff', '');
+  var pair = labels[base];
+  var btnA = document.getElementById(idA);
+  var btnB = document.getElementById(idB);
+  if (btnA && btnB && pair) {
+    var hi = pair[0].charAt(0).toUpperCase() + pair[0].slice(1);
+    var lo = pair[1].charAt(0).toUpperCase() + pair[1].slice(1);
+    btnA.textContent = '→ ' + hi;
+    btnB.textContent = '→ ' + lo;
+  } else if (btnA && btnB) {
+    btnA.textContent = '→ A';
+    btnB.textContent = '→ B';
+  }
+}
+
+// Rebuild SVG in-place while the panel stays open (real-time feedback)
+function updateSVG() {
+  savePanel();
+  saveLeafPanel();
+  saveRefinePanel();
+  saveDefaultPanel();
+  document.getElementById('svg-wrap').innerHTML = buildSVG();
+  reAttachNodeClicks();
+  updateHeight();
+}
+
+function closePanel() {
+  savePanel();
+  document.getElementById('edit-panel').style.display = 'none';
+  if (selectedNode !== null) {
+    selectedNode = null;
+    document.getElementById('svg-wrap').innerHTML = buildSVG();
+    reAttachNodeClicks();
+    updateHeight();
+  }
+}
+
+function savePanel() {
+  if (selectedNode === null) return;
+  var i  = selectedNode;
+  var nd = tree.nodes[i];
+
+  nd.feature    = document.getElementById('ep-feat').value;
+  nd.op         = nd.use_abs ? '>=' : (document.getElementById('ep-op').value || '>=');
+  var tv        = parseFloat(document.getElementById('ep-thr').value);
+  if (!isNaN(tv)) nd.threshold = Math.abs(tv);  // abs nodes always use positive threshold
+  var aOn = document.getElementById('ep-out-a').classList.contains('ep-on');
+  if (nd.use_abs) {
+    nd.prefer_higher = aOn;  // "A button" = prefer higher for abs nodes
+  } else {
+    nd.exit_class = aOn ? 1 : 0;
+  }
+
+  // Refine
+  var rf = document.getElementById('ep-r-feat');
+  if (rf && nd.refine) {
+    nd.refine.feature     = rf.value;
+    nd.refine.op          = document.getElementById('ep-r-op').value;
+    var rv = parseFloat(document.getElementById('ep-r-thr').value);
+    if (!isNaN(rv)) nd.refine.threshold = rv;
+    nd.refine.true_class  = document.getElementById('ep-r-out-a').classList.contains('ep-on') ? 1 : 0;
+    nd.refine.false_class = nd.refine.true_class === 1 ? 0 : 1;
+  }
+}
+
+function buildRefine(nodeIdx, refine) {
+  var sec = document.getElementById('ep-refine');
+  sec.innerHTML = '';
+
+  if (refine) {
+    var head = document.createElement('div');
+    head.className = 'ep-refine-head';
+
+    var lbl = document.createElement('span');
+    lbl.className = 'ep-field-label';
+    lbl.textContent = 'Tie-breaker — if close:';
+
+    var rmBtn = document.createElement('button');
+    rmBtn.className = 'ep-rm-refine';
+    rmBtn.textContent = 'Remove ✕';
+    rmBtn.addEventListener('click', function() {
+      savePanel();
+      delete tree.nodes[nodeIdx].refine;
+      buildRefine(nodeIdx, null);
+      document.getElementById('svg-wrap').innerHTML = buildSVG();
+      reAttachNodeClicks();
+      updateHeight();
+    });
+    head.appendChild(lbl); head.appendChild(rmBtn);
+    sec.appendChild(head);
+
+    var rFeat = document.createElement('select');
+    rFeat.id = 'ep-r-feat'; rFeat.className = 'ep-select feat';
+    params.forEach(function(p) {
+      var opt = document.createElement('option');
+      opt.value = p+'_diff'; opt.textContent = pretty(p+'_diff');
+      if (opt.value === refine.feature) opt.selected = true;
+      rFeat.appendChild(opt);
+    });
+    sec.appendChild(rFeat);
+
+    var rRow = document.createElement('div'); rRow.className = 'ep-cond-row';
+    var rOp = document.createElement('select');
+    rOp.id = 'ep-r-op'; rOp.className = 'ep-select op';
+    [['>=','≥'],['<=','≤']].forEach(function(p) {
+      var opt=document.createElement('option'); opt.value=p[0]; opt.textContent=p[1];
+      if (p[0]===refine.op) opt.selected=true; rOp.appendChild(opt);
+    });
+    var rThr = document.createElement('input');
+    rThr.id='ep-r-thr'; rThr.className='ep-input thr'; rThr.type='number'; rThr.step='0.5'; rThr.value=refine.threshold;
+    rRow.appendChild(rOp); rRow.appendChild(rThr); sec.appendChild(rRow);
+
+    var rOutLbl = document.createElement('div');
+    rOutLbl.className='ep-outcome-label'; rOutLbl.textContent='Prefer when true:'; rOutLbl.style.marginTop='6px';
+    sec.appendChild(rOutLbl);
+
+    var rOutRow = document.createElement('div'); rOutRow.className='ep-outcome-row';
+    var rBtnA = document.createElement('button');
+    rBtnA.id='ep-r-out-a'; rBtnA.className='ep-toggle ep-toggle-a'+(refine.true_class===1?' ep-on':''); rBtnA.textContent='→ A';
+    var rBtnB = document.createElement('button');
+    rBtnB.id='ep-r-out-b'; rBtnB.className='ep-toggle ep-toggle-b'+(refine.true_class===0?' ep-on':''); rBtnB.textContent='→ B';
+    rBtnA.addEventListener('click', function(){ setOutcomeToggle('ep-r-out-a','ep-r-out-b',true); });
+    rBtnB.addEventListener('click', function(){ setOutcomeToggle('ep-r-out-a','ep-r-out-b',false); });
+    rOutRow.appendChild(rBtnA); rOutRow.appendChild(rBtnB); sec.appendChild(rOutRow);
+
+  } else {
+    var addBtn = document.createElement('button');
+    addBtn.className = 'ep-add-refine'; addBtn.textContent = '＋ Add tie-breaker';
+    addBtn.addEventListener('click', function() {
+      savePanel();
+      var used = [tree.nodes[nodeIdx].feature];
+      var rf2 = null;
+      for (var pi=0; pi<params.length; pi++) {
+        if (used.indexOf(params[pi]+'_diff')===-1){ rf2=params[pi]+'_diff'; break; }
+      }
+      if (!rf2) rf2 = (params[0]||'age')+'_diff';
+      tree.nodes[nodeIdx].refine = {feature:rf2,op:'>=',threshold:0,true_class:1,false_class:0,
+        support:0,false_support:0,purity:.5,false_purity:.5,manual:true};
+      buildRefine(nodeIdx, tree.nodes[nodeIdx].refine);
+      document.getElementById('svg-wrap').innerHTML = buildSVG();
+      reAttachNodeClicks();
+      updateHeight();
+    });
+    sec.appendChild(addBtn);
+  }
+}
+
+// ── Leaf panel (YES exit) ─────────────────────────────────────────
+var leafPanelNode = null;
+
+function openLeafPanel(i) {
+  closePanel(); closeDefaultPanel(); closeRefinePanel();
+  leafPanelNode = i;
+  var nd = tree.nodes[i];
+  document.getElementById('lp-title').textContent = 'STEP ' + (i + 1) + ' · YES EXIT';
+  setOutcomeToggle('lp-out-a', 'lp-out-b', nd.exit_class === 1);
+
+  var cy = PAD + i * ROW_H + NH / 2;
+  var panel = document.getElementById('leaf-panel');
+  panel.style.top = (cy - LH / 2 - 8) + 'px';
+  panel.classList.add('visible');
+  updateHeight();
+}
+
+function saveLeafPanel() {
+  if (leafPanelNode === null) return;
+  tree.nodes[leafPanelNode].exit_class =
+    document.getElementById('lp-out-a').classList.contains('ep-on') ? 1 : 0;
+}
+
+function closeLeafPanel() {
+  saveLeafPanel();
+  document.getElementById('leaf-panel').classList.remove('visible');
+  leafPanelNode = null;
+}
+
+// ── Refine panel (tie-breaker box) ────────────────────────────────
+var refinePanelNode = null;
+
+function openRefinePanel(i) {
+  closePanel(); closeLeafPanel(); closeDefaultPanel();
+  refinePanelNode = i;
+  var r = tree.nodes[i].refine;
+  document.getElementById('rp-title').textContent = 'TIE-BREAKER · STEP ' + (i + 1);
+
+  var featSel = document.getElementById('rp-feat');
+  featSel.innerHTML = '';
+  params.forEach(function(p) {
+    var opt = document.createElement('option');
+    opt.value = p + '_diff'; opt.textContent = pretty(p + '_diff');
+    if (opt.value === r.feature) opt.selected = true;
+    featSel.appendChild(opt);
+  });
+  document.getElementById('rp-op').value  = r.op || '>=';
+  document.getElementById('rp-thr').value = r.threshold;
+  setOutcomeToggle('rp-out-a', 'rp-out-b', r.true_class === 1);
+
+  var cy = PAD + i * ROW_H + NH / 2;
+  var panel = document.getElementById('refine-panel');
+  panel.style.top = (cy - RH / 2 - 8) + 'px';
+  panel.classList.add('visible');
+  updateHeight();
+}
+
+function saveRefinePanel() {
+  if (refinePanelNode === null) return;
+  var r = tree.nodes[refinePanelNode].refine;
+  if (!r) return;
+  r.feature     = document.getElementById('rp-feat').value;
+  r.op          = document.getElementById('rp-op').value;
+  var tv        = parseFloat(document.getElementById('rp-thr').value);
+  if (!isNaN(tv)) r.threshold = tv;
+  r.true_class  = document.getElementById('rp-out-a').classList.contains('ep-on') ? 1 : 0;
+  r.false_class = r.true_class === 1 ? 0 : 1;
+}
+
+function closeRefinePanel() {
+  saveRefinePanel();
+  document.getElementById('refine-panel').classList.remove('visible');
+  refinePanelNode = null;
+}
+
+// ── Insert step at position ────────────────────────────────────────
+function insertStepAt(afterIndex) {
+  var used = tree.nodes.map(function(nd) { return nd.feature; });
+  var rf = null;
+  for (var pi = 0; pi < params.length; pi++) {
+    if (used.indexOf(params[pi] + '_diff') === -1) { rf = params[pi] + '_diff'; break; }
+  }
+  if (!rf) rf = (params[0] || 'age') + '_diff';
+  var newNode = { feature: rf, op: '>=', threshold: 0, exit_class: 1, support: 0, purity: 0.5 };
+  tree.nodes.splice(afterIndex + 1, 0, newNode);
+  closeLeafPanel();
+  render();
+}
+
+// ── Default panel ─────────────────────────────────────────────────
+function openDefaultPanel() {
+  closePanel();
+  var n = tree.nodes.length;
+  var dy = PAD + n * ROW_H + LH + 14;
+
+  setOutcomeToggle('def-out-a','def-out-b', tree.default_class === 1);
+  var dp = document.getElementById('default-panel');
+  dp.style.top = dy + 'px'; dp.style.display = 'block';
+  updateHeight();
+}
+function closeDefaultPanel() {
+  document.getElementById('default-panel').style.display = 'none';
+}
+function saveDefaultPanel() {
+  tree.default_class = document.getElementById('def-out-a').classList.contains('ep-on') ? 1 : 0;
+}
+
+// ── Outcome toggle helper ─────────────────────────────────────────
+function setOutcomeToggle(idA, idB, aIsOn) {
+  var btnA = document.getElementById(idA);
+  var btnB = document.getElementById(idB);
+  if (!btnA || !btnB) return;
+  btnA.className = btnA.className.replace(/ ep-on/g,'') + (aIsOn ? ' ep-on' : '');
+  btnB.className = btnB.className.replace(/ ep-on/g,'') + (!aIsOn? ' ep-on' : '');
+}
+
+// Re-attach node clicks after innerHTML rebuild
+function reAttachNodeClicks() {
+  document.querySelectorAll('[data-node]').forEach(function(g) {
+    var idx = parseInt(g.getAttribute('data-node'), 10);
+    g.addEventListener('click', function(e) { e.stopPropagation(); openPanel(idx); });
+  });
+  document.querySelectorAll('[data-leaf]').forEach(function(g) {
+    var idx = parseInt(g.getAttribute('data-leaf'), 10);
+    g.addEventListener('click', function(e) { e.stopPropagation(); openLeafPanel(idx); });
+  });
+  document.querySelectorAll('[data-refine]').forEach(function(g) {
+    var idx = parseInt(g.getAttribute('data-refine'), 10);
+    g.addEventListener('click', function(e) { e.stopPropagation(); openRefinePanel(idx); });
+  });
+  var defLeaf = document.getElementById('default-leaf');
+  if (defLeaf) {
+    defLeaf.addEventListener('click', function(e) {
+      e.stopPropagation(); openDefaultPanel();
+    });
+  }
+  document.getElementById('svg-wrap').addEventListener('click', function() {
+    closePanel(); closeLeafPanel(); closeRefinePanel(); closeDefaultPanel();
   });
 }
 
+// ── Height sync ───────────────────────────────────────────────────
+function updateHeight() {
+  requestAnimationFrame(function() {
+    var h = Math.max(document.body.scrollHeight, 100);
+    window.parent.postMessage({isStreamlitMessage:true, type:'streamlit:setFrameHeight', height:h}, '*');
+  });
+}
 if (typeof ResizeObserver !== 'undefined') {
   new ResizeObserver(updateHeight).observe(document.body);
 }
 
-/* ── Streamlit integration ───────────────────────────────────── */
+// ── Panel button wiring ───────────────────────────────────────────
+document.getElementById('ep-close').addEventListener('click', function() {
+  savePanel(); closePanel();
+});
+document.getElementById('ep-del').addEventListener('click', function() {
+  if (selectedNode === null || tree.nodes.length <= 1) return;
+  tree.nodes.splice(selectedNode, 1);
+  selectedNode = null;
+  document.getElementById('edit-panel').style.display = 'none';
+  render();
+});
+document.getElementById('ep-feat').addEventListener('change', function() {
+  var feat = document.getElementById('ep-feat').value;
+  _refreshOutcomeLabels(feat, 'ep-out-a', 'ep-out-b');
+  updateSVG();
+});
+document.getElementById('ep-op').addEventListener('change', updateSVG);
+document.getElementById('ep-thr').addEventListener('change', updateSVG);
+document.getElementById('ep-out-a').addEventListener('click', function() {
+  setOutcomeToggle('ep-out-a','ep-out-b',true); updateSVG();
+});
+document.getElementById('ep-out-b').addEventListener('click', function() {
+  setOutcomeToggle('ep-out-a','ep-out-b',false); updateSVG();
+});
+// Prevent panel clicks from bubbling to svg-wrap
+document.getElementById('edit-panel').addEventListener('click', function(e){ e.stopPropagation(); });
+document.getElementById('default-panel').addEventListener('click', function(e){ e.stopPropagation(); });
 
+document.getElementById('def-out-a').addEventListener('click', function() {
+  setOutcomeToggle('def-out-a','def-out-b',true); updateSVG();
+});
+document.getElementById('def-out-b').addEventListener('click', function() {
+  setOutcomeToggle('def-out-a','def-out-b',false); updateSVG();
+});
+document.getElementById('def-close').addEventListener('click', function() {
+  saveDefaultPanel();
+  closeDefaultPanel();
+  document.getElementById('svg-wrap').innerHTML = buildSVG();
+  reAttachNodeClicks();
+  updateHeight();
+});
+
+// ── Leaf panel wiring ─────────────────────────────────────────────
+document.getElementById('lp-close').addEventListener('click', function() {
+  saveLeafPanel();
+  closeLeafPanel();
+  document.getElementById('svg-wrap').innerHTML = buildSVG();
+  reAttachNodeClicks();
+  updateHeight();
+});
+document.getElementById('lp-out-a').addEventListener('click', function() {
+  setOutcomeToggle('lp-out-a', 'lp-out-b', true); updateSVG();
+});
+document.getElementById('lp-out-b').addEventListener('click', function() {
+  setOutcomeToggle('lp-out-a', 'lp-out-b', false); updateSVG();
+});
+document.getElementById('lp-insert').addEventListener('click', function() {
+  saveLeafPanel();
+  if (leafPanelNode !== null) insertStepAt(leafPanelNode);
+});
+document.getElementById('leaf-panel').addEventListener('click', function(e) { e.stopPropagation(); });
+
+// ── Refine panel wiring ───────────────────────────────────────────
+document.getElementById('rp-close').addEventListener('click', function() {
+  saveRefinePanel();
+  closeRefinePanel();
+  document.getElementById('svg-wrap').innerHTML = buildSVG();
+  reAttachNodeClicks();
+  updateHeight();
+});
+document.getElementById('rp-del').addEventListener('click', function() {
+  if (refinePanelNode === null) return;
+  delete tree.nodes[refinePanelNode].refine;
+  closeRefinePanel();
+  render();
+});
+document.getElementById('rp-out-a').addEventListener('click', function() {
+  setOutcomeToggle('rp-out-a', 'rp-out-b', true); updateSVG();
+});
+document.getElementById('rp-out-b').addEventListener('click', function() {
+  setOutcomeToggle('rp-out-a', 'rp-out-b', false); updateSVG();
+});
+document.getElementById('refine-panel').addEventListener('click', function(e) { e.stopPropagation(); });
+
+document.getElementById('btn-add').addEventListener('click', function() {
+  savePanel(); closePanel(); closeDefaultPanel();
+  var used = tree.nodes.map(function(nd){ return nd.feature; });
+  var rf = null;
+  for (var pi=0; pi<params.length; pi++) {
+    if (used.indexOf(params[pi]+'_diff')===-1){ rf=params[pi]+'_diff'; break; }
+  }
+  if (!rf) rf = (params[0]||'age')+'_diff';
+  tree.nodes.push({feature:rf,op:'>=',threshold:0,exit_class:1,support:0,purity:.5});
+  render();
+});
+
+document.getElementById('btn-apply').addEventListener('click', function() {
+  savePanel();
+  saveLeafPanel();
+  saveRefinePanel();
+  saveDefaultPanel();
+  window.parent.postMessage(
+    {isStreamlitMessage:true, type:'streamlit:setComponentValue', value:tree, dataType:'json'},
+    '*'
+  );
+  var btn = document.getElementById('btn-apply');
+  btn.textContent = '✓ Changes applied';
+  btn.classList.add('saved');
+  setTimeout(function(){ btn.textContent='Apply changes'; btn.classList.remove('saved'); }, 3000);
+});
+
+// ── Streamlit integration ─────────────────────────────────────────
 window.addEventListener('message', function(event) {
   if (!event.data || !event.data.type) return;
   if (event.data.type === 'streamlit:render') {
     var args = event.data.args || {};
-    tree    = args.tree ? JSON.parse(JSON.stringify(args.tree)) : null;
+    tree    = args.tree    ? JSON.parse(JSON.stringify(args.tree)) : null;
     editing = !!args.editing;
-    params  = args.params || [];
+    params  = args.params  || [];
+    labels  = args.labels  || {};
+    selectedNode   = null;
+    leafPanelNode  = null;
+    refinePanelNode = null;
+    document.getElementById('edit-panel').style.display    = 'none';
+    document.getElementById('default-panel').style.display = 'none';
+    document.getElementById('leaf-panel').classList.remove('visible');
+    document.getElementById('refine-panel').classList.remove('visible');
     render();
   }
 });
-
-window.parent.postMessage({ isStreamlitMessage: true, type: 'streamlit:componentReady', apiVersion: 1 }, '*');
+window.parent.postMessage({isStreamlitMessage:true, type:'streamlit:componentReady', apiVersion:1}, '*');
 </script>
 </body>
 </html>

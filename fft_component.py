@@ -13,6 +13,46 @@ test and reuse outside Streamlit.
 
 import html
 
+# ── Semantic direction labels ─────────────────────────────────────────────────
+# Full labels — used in edit panel toggles and plain-English descriptions.
+PARAM_DIRECTION_LABELS = {
+    "age":               ("older patient",      "younger patient"),
+    "years_waiting":     ("longer wait",        "shorter wait"),
+    "health_score":      ("healthier patient",  "less healthy patient"),
+    "dependents":        ("more dependents",    "fewer dependents"),
+    "prior_transplants": ("more transplants",   "fewer transplants"),
+    "urgency_score":     ("more urgent",        "less urgent"),
+}
+
+# Compact labels — used inside SVG leaf boxes where space is tight.
+_PARAM_LABELS_SVG = {
+    "age":               ("Older",        "Younger"),
+    "years_waiting":     ("Longer wait",  "Shorter wait"),
+    "health_score":      ("Healthier",    "Less healthy"),
+    "dependents":        ("More deps.",   "Fewer deps."),
+    "prior_transplants": ("More tx.",     "Fewer tx."),
+    "urgency_score":     ("More urgent",  "Less urgent"),
+}
+
+
+def outcome_label(node, short=False):
+    """
+    Return the outcome label for a tree node's YES exit.
+    - If node has use_abs=True: returns a semantic label.
+    - Otherwise falls back to 'Prefer A' / 'Prefer B' from exit_class.
+    `short=True` uses compact single/two-word labels for SVG boxes.
+    """
+    if node.get("use_abs"):
+        base = node["feature"].replace("_diff", "")
+        if short:
+            pair = _PARAM_LABELS_SVG.get(base, ("Higher", "Lower"))
+        else:
+            pair = PARAM_DIRECTION_LABELS.get(base, ("higher value", "lower value"))
+        label = pair[0] if node.get("prefer_higher", True) else pair[1]
+        return label
+    cls = node.get("exit_class", 1)
+    return "Prefer A" if cls == 1 else "Prefer B"
+
 
 def _fmt_num(x, decimals=2):
     """Round for display and drop noisy trailing zeros: 0.50 -> '0.5', 4.00 -> '4'."""
@@ -30,13 +70,59 @@ def pretty_feature(feature):
     return base.replace("_", " ").title() + " (Δ A−B)"
 
 
+def _leaf_text(cls):
+    """Fallback when no feature context is available."""
+    return "Prefer A" if cls == 1 else "Prefer B"
+
+
+def _refine_branch_label(refine, is_true_branch):
+    """
+    Semantic label for a tie-breaker refine branch.
+    TRUE branch: condition fires → infer who is higher from op/threshold/class.
+    FALSE branch: condition doesn't fire → opposite direction.
+    Returns an HTML-escaped short label.
+    """
+    op      = refine.get("op", ">=")
+    thr     = float(refine.get("threshold", 0))
+    feature = refine.get("feature", "")
+    tc      = int(refine.get("true_class", 1))
+
+    # When condition fires: determine who is "higher" on the refine feature
+    if op == ">=" and thr > 0:
+        ph_true = (tc == 1)    # A is higher when fires, prefer A → prefer_higher
+    elif op == "<=" and thr < 0:
+        ph_true = (tc == 0)    # B is higher when fires, prefer B → prefer_higher
+    else:
+        ph_true = (tc == 1)
+
+    prefer_higher = ph_true if is_true_branch else (not ph_true)
+    label = outcome_label({"use_abs": True, "prefer_higher": prefer_higher,
+                           "feature": feature}, short=True)
+    return html.escape(label)
+
+
+def _node_cond_text(node):
+    """Condition text for a node: '|Δ| ≥ X' for abs nodes, '≥ X' for legacy."""
+    op_sym = "≥" if node["op"] == ">=" else "≤"
+    val = _fmt_num(node["threshold"])
+    if node.get("use_abs"):
+        return f"|Δ| ≥ {val}"
+    return f"{op_sym} {val}"
+
+
 def _eval_path(tree, diffs):
     """Return ('exit', node_index, class) or ('default', -1, class)."""
     for i, n in enumerate(tree["nodes"]):
         x = float(diffs.get(n["feature"], 0.0))
-        cond = (x >= n["threshold"]) if n["op"] == ">=" else (x <= n["threshold"])
-        if cond:
-            return "exit", i, n["exit_class"]
+        if n.get("use_abs"):
+            cond = abs(x) >= n["threshold"]
+            if cond:
+                ph = n.get("prefer_higher", True)
+                return "exit", i, (1 if (x > 0) == ph else 0)
+        else:
+            cond = (x >= n["threshold"]) if n["op"] == ">=" else (x <= n["threshold"])
+            if cond:
+                return "exit", i, n["exit_class"]
     return "default", -1, tree["default_class"]
 
 
@@ -79,9 +165,6 @@ def fft_svg(tree, palette, test_diffs=None, width=760):
     def leaf_fill(cls):
         return p["a"] if cls == 1 else p["b"]
 
-    def leaf_text(cls):
-        return "Prefer A" if cls == 1 else "Prefer B"
-
     s = []
     s.append(
         f'<svg viewBox="0 0 {out_width} {height}" width="100%" '
@@ -101,11 +184,12 @@ def fft_svg(tree, palette, test_diffs=None, width=760):
     # prediction badge
     if test_diffs is not None:
         pf = leaf_fill(pred_class)
+        pred_lbl = "Prefer A" if pred_class == 1 else "Prefer B"
         s.append(
             f'<rect x="{node_x}" y="18" rx="14" width="300" height="34" '
             f'fill="{pf}" opacity="0.16" stroke="{pf}"/>'
             f'<text x="{node_x + 16}" y="40" font-size="15" font-weight="700" '
-            f'fill="{pf}">Prediction:&#160;{leaf_text(pred_class)}</text>'
+            f'fill="{pf}">Prediction:&#160;{pred_lbl}</text>'
         )
 
     for i, node in enumerate(nodes):
@@ -120,21 +204,21 @@ def fft_svg(tree, palette, test_diffs=None, width=760):
         box_sw = 2.5 if is_exit else 1.2
         has_refine = bool(node.get("refine"))
 
-        # decision box — near-tie nodes read as a symmetric closeness check
+        # condition text: abs nodes use |Δ| ≥ X; refine nodes use symmetric closeness
         if has_refine:
             cond_text = f"|A − B| ≤ {_fmt_num(abs(node['threshold']))}"
         else:
-            cond_text = f'{html.escape(node["op"])} {_fmt_num(node["threshold"])}'
+            cond_text = _node_cond_text(node)
         s.append(
             f'<g opacity="{node_op}">'
             f'<rect x="{node_x}" y="{y}" rx="11" width="{node_w}" height="{node_h}" '
             f'fill="{p["card"]}" stroke="{box_stroke}" stroke-width="{box_sw}"/>'
-            f'<text x="{node_x + 16}" y="{y + 22}" font-size="11.5" '
+            f'<text x="{node_x + 16}" y="{y + 22}" font-size="13" '
             f'fill="{p["muted"]}" font-weight="600">STEP {i + 1}</text>'
             f'<text x="{node_x + 16}" y="{y + 44}" font-size="15.5" '
             f'fill="{p["text"]}" font-weight="600">'
             f'{html.escape(pretty_feature(node["feature"]))}</text>'
-            f'<text x="{node_x + 16}" y="{y + 60}" font-size="13" '
+            f'<text x="{node_x + 16}" y="{y + 60}" font-size="14" '
             f'fill="{p["dim"]}" font-family="monospace">{cond_text}</text>'
             f'</g>'
         )
@@ -148,12 +232,14 @@ def fft_svg(tree, palette, test_diffs=None, width=760):
             f'<line x1="{node_x + node_w}" y1="{cy}" x2="{target_x}" y2="{cy}" '
             f'stroke="{yes_col}" stroke-width="{2.4 if yes_hl else 1.3}" '
             f'opacity="{node_op}" marker-end="url(#{marker})"/>'
-            f'<text x="{node_x + node_w + 12}" y="{cy - 8}" font-size="11" '
+            f'<text x="{node_x + node_w + 12}" y="{cy - 8}" font-size="12.5" '
             f'fill="{yes_col}" opacity="{node_op}" font-weight="600">YES</text>'
         )
 
         if not has_refine:
-            lf = leaf_fill(node["exit_class"])
+            node_exit_cls = node.get("exit_class", 1)
+            lf = leaf_fill(node_exit_cls)
+            leaf_lbl = html.escape(outcome_label(node, short=True))
             leaf_op = node_op if (test_diffs is None or is_exit or not on_path) else 0.5
             if is_exit:
                 leaf_op = 1.0
@@ -164,9 +250,9 @@ def fft_svg(tree, palette, test_diffs=None, width=760):
                 f'<rect x="{leaf_x}" y="{cy - leaf_h / 2}" rx="10" width="{leaf_w}" '
                 f'height="{leaf_h}" fill="none" stroke="{lf}" '
                 f'stroke-width="{2.4 if is_exit else 1.4}"/>'
-                f'<text x="{leaf_x + leaf_w / 2}" y="{cy + 5}" font-size="14" '
+                f'<text x="{leaf_x + leaf_w / 2}" y="{cy + 5}" font-size="13" '
                 f'text-anchor="middle" fill="{lf}" font-weight="700">'
-                f'{leaf_text(node["exit_class"])}</text>'
+                f'{leaf_lbl}</text>'
                 f'</g>'
             )
         else:
@@ -184,11 +270,11 @@ def fft_svg(tree, palette, test_diffs=None, width=760):
                 f'<rect x="{refine_x}" y="{ry}" rx="10" width="{refine_w}" height="{refine_h}" '
                 f'fill="{p["card"]}" stroke="{r_stroke}" stroke-width="{r_sw}" '
                 f'stroke-dasharray="4 3"/>'
-                f'<text x="{refine_x + 12}" y="{ry + 18}" font-size="10.5" fill="{p["muted"]}" '
+                f'<text x="{refine_x + 12}" y="{ry + 18}" font-size="11.5" fill="{p["muted"]}" '
                 f'font-weight="700">CLOSE CALL — TIE-BREAKER</text>'
-                f'<text x="{refine_x + 12}" y="{ry + 35}" font-size="12.5" fill="{p["text"]}" '
+                f'<text x="{refine_x + 12}" y="{ry + 35}" font-size="14" fill="{p["text"]}" '
                 f'font-weight="600">{html.escape(pretty_feature(refine["feature"]))}</text>'
-                f'<text x="{refine_x + 12}" y="{ry + 50}" font-size="11" fill="{p["dim"]}" '
+                f'<text x="{refine_x + 12}" y="{ry + 50}" font-size="12.5" fill="{p["dim"]}" '
                 f'font-family="monospace">{html.escape(refine["op"])} '
                 f'{_fmt_num(refine["threshold"])}</text></g>'
             )
@@ -202,7 +288,7 @@ def fft_svg(tree, palette, test_diffs=None, width=760):
                 f'<line x1="{refine_x + refine_w}" y1="{ry + 12}" x2="{mini_x - 6}" '
                 f'y2="{true_cy}" stroke="{t_col}" stroke-width="{2.2 if r_true_hit else 1.2}" '
                 f'marker-end="url(#{"ahx" if r_true_hit else "ah"})"/>'
-                f'<text x="{refine_x + refine_w + 6}" y="{true_cy - 6}" font-size="10" '
+                f'<text x="{refine_x + refine_w + 6}" y="{true_cy - 6}" font-size="11.5" '
                 f'fill="{t_col}" font-weight="600">YES</text>'
                 f'<g opacity="{1.0 if (test_diffs is None or r_true_hit) else 0.45}">'
                 f'<rect x="{mini_x}" y="{true_cy - mini_h / 2}" rx="8" width="{mini_w}" '
@@ -210,15 +296,15 @@ def fft_svg(tree, palette, test_diffs=None, width=760):
                 f'<rect x="{mini_x}" y="{true_cy - mini_h / 2}" rx="8" width="{mini_w}" '
                 f'height="{mini_h}" fill="none" stroke="{tf}" '
                 f'stroke-width="{2.2 if r_true_hit else 1.3}"/>'
-                f'<text x="{mini_x + mini_w / 2}" y="{true_cy + 4}" font-size="12" '
+                f'<text x="{mini_x + mini_w / 2}" y="{true_cy + 4}" font-size="13.5" '
                 f'text-anchor="middle" fill="{tf}" font-weight="700">'
-                f'{leaf_text(refine["true_class"])}</text></g>'
+                f'{_refine_branch_label(refine, True)}</text></g>'
             )
             s.append(
                 f'<line x1="{refine_x + refine_w}" y1="{ry + refine_h - 12}" x2="{mini_x - 6}" '
                 f'y2="{false_cy}" stroke="{f_col}" stroke-width="{2.2 if r_false_hit else 1.2}" '
                 f'marker-end="url(#{"ahx" if r_false_hit else "ah"})"/>'
-                f'<text x="{refine_x + refine_w + 6}" y="{false_cy + 16}" font-size="10" '
+                f'<text x="{refine_x + refine_w + 6}" y="{false_cy + 16}" font-size="11.5" '
                 f'fill="{f_col}" font-weight="600">NO</text>'
                 f'<g opacity="{1.0 if (test_diffs is None or r_false_hit) else 0.45}">'
                 f'<rect x="{mini_x}" y="{false_cy - mini_h / 2}" rx="8" width="{mini_w}" '
@@ -226,9 +312,9 @@ def fft_svg(tree, palette, test_diffs=None, width=760):
                 f'<rect x="{mini_x}" y="{false_cy - mini_h / 2}" rx="8" width="{mini_w}" '
                 f'height="{mini_h}" fill="none" stroke="{ff}" '
                 f'stroke-width="{2.2 if r_false_hit else 1.3}"/>'
-                f'<text x="{mini_x + mini_w / 2}" y="{false_cy + 4}" font-size="12" '
+                f'<text x="{mini_x + mini_w / 2}" y="{false_cy + 4}" font-size="13.5" '
                 f'text-anchor="middle" fill="{ff}" font-weight="700">'
-                f'{leaf_text(refine["false_class"])}</text></g>'
+                f'{_refine_branch_label(refine, False)}</text></g>'
             )
 
         # NO branch -> down to next node (or default leaf)
@@ -242,7 +328,7 @@ def fft_svg(tree, palette, test_diffs=None, width=760):
             f'y2="{no_y2 - 4}" stroke="{no_col}" '
             f'stroke-width="{2.2 if no_hl else 1.3}" opacity="{no_op}" '
             f'marker-end="url(#{no_marker})"/>'
-            f'<text x="{node_x + 32}" y="{y + node_h + 24}" font-size="11" '
+            f'<text x="{node_x + 32}" y="{y + node_h + 24}" font-size="12.5" '
             f'fill="{no_col}" opacity="{no_op}" font-weight="600">NO</text>'
         )
 
@@ -259,9 +345,9 @@ def fft_svg(tree, palette, test_diffs=None, width=760):
         f'<rect x="{node_x + 24 - leaf_w / 2 + 14}" y="{y + 4}" rx="10" '
         f'width="{leaf_w}" height="{leaf_h}" fill="none" stroke="{df}" '
         f'stroke-width="{2.4 if d_hl else 1.4}"/>'
-        f'<text x="{node_x + 24 + 14}" y="{y + 4 + leaf_h / 2 + 5}" font-size="13" '
+        f'<text x="{node_x + 24 + 14}" y="{y + 4 + leaf_h / 2 + 5}" font-size="14" '
         f'text-anchor="middle" fill="{df}" font-weight="700">'
-        f'Default · {leaf_text(dcls)}</text>'
+        f'Default · {"Prefer A" if dcls == 1 else "Prefer B"}</text>'
         f'</g>'
     )
 
@@ -313,7 +399,10 @@ def _eval_path_explained(tree, diffs):
     None / True / False."""
     for i, n in enumerate(tree["nodes"]):
         x = float(diffs.get(n["feature"], 0.0))
-        cond = (x >= n["threshold"]) if n["op"] == ">=" else (x <= n["threshold"])
+        if n.get("use_abs"):
+            cond = abs(x) >= n["threshold"]
+        else:
+            cond = (x >= n["threshold"]) if n["op"] == ">=" else (x <= n["threshold"])
         if cond:
             refine = n.get("refine")
             if refine:
@@ -322,6 +411,10 @@ def _eval_path_explained(tree, diffs):
                          else (rx <= refine["threshold"]))
                 cls = refine["true_class"] if rcond else refine["false_class"]
                 return "exit", i, cls, bool(rcond)
+            if n.get("use_abs"):
+                ph = n.get("prefer_higher", True)
+                cls = 1 if (x > 0) == ph else 0
+                return "exit", i, cls, None
             return "exit", i, n["exit_class"], None
     return "default", -1, tree["default_class"], None
 
@@ -355,7 +448,7 @@ def fft_svg_explained(tree, palette=None, node_explanations=None,
     n = len(nodes)
     node_explanations = node_explanations or [{} for _ in nodes]
 
-    CAP_CHARS, CAP_LINE_H = 54, 15
+    CAP_CHARS, CAP_LINE_H = 54, 17
     node_x, node_w, node_h_base = 36, 372, 66
     leaf_x, leaf_w, leaf_h = 540, 150, 46
     refine_gap, refine_w, refine_h = 34, 190, 54
@@ -374,9 +467,6 @@ def fft_svg_explained(tree, palette=None, node_explanations=None,
     def leaf_fill(cls):
         return p["a"] if cls == 1 else p["b"]
 
-    def leaf_text(cls):
-        return "Prefer A" if cls == 1 else "Prefer B"
-
     # pre-compute each row's height (room for wrapped caption + refine box)
     row_heights = []
     for i, node in enumerate(nodes):
@@ -386,7 +476,7 @@ def fft_svg_explained(tree, palette=None, node_explanations=None,
         refine_extra = 0
         if node.get("refine"):
             rcap_lines = _wrap(exp.get("refine_explanation", ""), 40)
-            refine_extra = max(refine_h, len(rcap_lines) * 13 + 34) + 20
+            refine_extra = max(refine_h, len(rcap_lines) * 15 + 34) + 20
         row_h = max(node_h, refine_extra) + 56
         row_heights.append((row_h, cap_lines, node_h))
 
@@ -411,11 +501,11 @@ def fft_svg_explained(tree, palette=None, node_explanations=None,
         s.append(
             f'<rect x="{node_x}" y="10" rx="10" width="{out_width - node_x * 2}" '
             f'height="{summary_h - 10}" fill="{p["card"]}" stroke="{p["border"]}"/>'
-            f'<text x="{node_x + 16}" y="30" font-size="12" font-weight="700" '
+            f'<text x="{node_x + 16}" y="30" font-size="13.5" font-weight="700" '
             f'fill="{p["muted"]}">WHAT YOU SEEM TO VALUE</text>'
         )
         for li, line in enumerate(summary_lines):
-            s.append(f'<text x="{node_x + 16}" y="{50 + li * 19}" font-size="13.5" '
+            s.append(f'<text x="{node_x + 16}" y="{50 + li * 19}" font-size="15" '
                      f'fill="{p["text"]}">{html.escape(line)}</text>')
 
     if test_diffs is not None:
@@ -425,7 +515,7 @@ def fft_svg_explained(tree, palette=None, node_explanations=None,
             f'<rect x="{node_x}" y="{by}" rx="14" width="300" height="32" '
             f'fill="{pf}" opacity="0.16" stroke="{pf}"/>'
             f'<text x="{node_x + 16}" y="{by + 21}" font-size="14" font-weight="700" '
-            f'fill="{pf}">Prediction:&#160;{leaf_text(pred_class)}</text>'
+            f'fill="{pf}">Prediction:&#160;{_leaf_text(pred_class)}</text>'
         )
 
     y_cursor = pad_top
@@ -446,21 +536,21 @@ def fft_svg_explained(tree, palette=None, node_explanations=None,
         if has_refine:
             cond_text = f"|A − B| ≤ {_fmt_num(abs(node['threshold']))}"
         else:
-            cond_text = f'{html.escape(node["op"])} {_fmt_num(node["threshold"])}'
+            cond_text = _node_cond_text(node)
 
         s.append(f'<g opacity="{node_op}">')
         s.append(
             f'<rect x="{node_x}" y="{y}" rx="11" width="{node_w}" height="{node_h}" '
             f'fill="{p["card"]}" stroke="{box_stroke}" stroke-width="{box_sw}"/>'
-            f'<text x="{node_x + 16}" y="{y + 22}" font-size="11.5" fill="{p["muted"]}" '
+            f'<text x="{node_x + 16}" y="{y + 22}" font-size="13" fill="{p["muted"]}" '
             f'font-weight="600">STEP {i + 1}</text>'
             f'<text x="{node_x + 16}" y="{y + 44}" font-size="15.5" fill="{p["text"]}" '
             f'font-weight="600">{html.escape(pretty_feature(node["feature"]))}</text>'
-            f'<text x="{node_x + 16}" y="{y + 60}" font-size="12.5" fill="{p["dim"]}" '
+            f'<text x="{node_x + 16}" y="{y + 60}" font-size="14" fill="{p["dim"]}" '
             f'font-family="monospace">{cond_text}</text>'
         )
         for li, line in enumerate(cap_lines):
-            s.append(f'<text x="{node_x + 16}" y="{y + 76 + li * CAP_LINE_H}" font-size="12" '
+            s.append(f'<text x="{node_x + 16}" y="{y + 76 + li * CAP_LINE_H}" font-size="13.5" '
                      f'fill="{p["muted"]}">{html.escape(line)}</text>')
         s.append('</g>')
 
@@ -474,12 +564,13 @@ def fft_svg_explained(tree, palette=None, node_explanations=None,
             f'<line x1="{node_x + node_w}" y1="{cy}" x2="{target_x}" y2="{cy}" '
             f'stroke="{yes_col}" stroke-width="{2.4 if yes_hl else 1.3}" '
             f'opacity="{node_op}" marker-end="url(#{marker})"/>'
-            f'<text x="{node_x + node_w + 12}" y="{cy - 8}" font-size="11" fill="{yes_col}" '
+            f'<text x="{node_x + node_w + 12}" y="{cy - 8}" font-size="12.5" fill="{yes_col}" '
             f'opacity="{node_op}" font-weight="600">YES</text>'
         )
 
         if not has_refine:
-            lf = leaf_fill(node["exit_class"])
+            lf = leaf_fill(node.get("exit_class", 1))
+            leaf_lbl = html.escape(outcome_label(node, short=True))
             leaf_op = 1.0 if (test_diffs is None or is_exit_here) else 0.5
             s.append(
                 f'<g opacity="{leaf_op}">'
@@ -488,9 +579,9 @@ def fft_svg_explained(tree, palette=None, node_explanations=None,
                 f'<rect x="{leaf_x}" y="{cy - leaf_h / 2}" rx="10" width="{leaf_w}" '
                 f'height="{leaf_h}" fill="none" stroke="{lf}" '
                 f'stroke-width="{2.4 if is_exit_here else 1.4}"/>'
-                f'<text x="{leaf_x + leaf_w / 2}" y="{cy + 5}" font-size="14" '
+                f'<text x="{leaf_x + leaf_w / 2}" y="{cy + 5}" font-size="13" '
                 f'text-anchor="middle" fill="{lf}" font-weight="700">'
-                f'{leaf_text(node["exit_class"])}</text></g>'
+                f'{leaf_lbl}</text></g>'
             )
         else:
             refine = node["refine"]
@@ -506,19 +597,19 @@ def fft_svg_explained(tree, palette=None, node_explanations=None,
                 f'<rect x="{refine_x}" y="{ry}" rx="10" width="{refine_w}" height="{refine_h}" '
                 f'fill="{p["card"]}" stroke="{r_stroke}" stroke-width="{r_sw}" '
                 f'stroke-dasharray="4 3"/>'
-                f'<text x="{refine_x + 12}" y="{ry + 18}" font-size="10.5" fill="{p["muted"]}" '
+                f'<text x="{refine_x + 12}" y="{ry + 18}" font-size="11.5" fill="{p["muted"]}" '
                 f'font-weight="700">CLOSE CALL — TIE-BREAKER</text>'
-                f'<text x="{refine_x + 12}" y="{ry + 35}" font-size="12.5" fill="{p["text"]}" '
+                f'<text x="{refine_x + 12}" y="{ry + 35}" font-size="14" fill="{p["text"]}" '
                 f'font-weight="600">{html.escape(pretty_feature(refine["feature"]))}</text>'
-                f'<text x="{refine_x + 12}" y="{ry + 50}" font-size="11" fill="{p["dim"]}" '
+                f'<text x="{refine_x + 12}" y="{ry + 50}" font-size="12.5" fill="{p["dim"]}" '
                 f'font-family="monospace">{html.escape(refine["op"])} '
                 f'{_fmt_num(refine["threshold"])}</text></g>'
             )
 
             rcap_lines = _wrap(exp.get("refine_explanation", ""), 40)
             for li, line in enumerate(rcap_lines):
-                s.append(f'<text x="{refine_x}" y="{ry + refine_h + 16 + li * 13}" '
-                         f'font-size="10.5" fill="{p["muted"]}">{html.escape(line)}</text>')
+                s.append(f'<text x="{refine_x}" y="{ry + refine_h + 16 + li * 15}" '
+                         f'font-size="11.5" fill="{p["muted"]}">{html.escape(line)}</text>')
 
             true_cy, false_cy = cy - 30, cy + 30
             tf, ff = leaf_fill(refine["true_class"]), leaf_fill(refine["false_class"])
@@ -529,7 +620,7 @@ def fft_svg_explained(tree, palette=None, node_explanations=None,
                 f'<line x1="{refine_x + refine_w}" y1="{ry + 12}" x2="{mini_x - 6}" y2="{true_cy}" '
                 f'stroke="{t_col}" stroke-width="{2.2 if r_true_hit else 1.2}" '
                 f'marker-end="url(#{"ahx2" if r_true_hit else "ah2"})"/>'
-                f'<text x="{refine_x + refine_w + 6}" y="{true_cy - 6}" font-size="10" '
+                f'<text x="{refine_x + refine_w + 6}" y="{true_cy - 6}" font-size="11.5" '
                 f'fill="{t_col}" font-weight="600">YES</text>'
                 f'<g opacity="{1.0 if (test_diffs is None or r_true_hit) else 0.45}">'
                 f'<rect x="{mini_x}" y="{true_cy - mini_h / 2}" rx="8" width="{mini_w}" '
@@ -537,15 +628,15 @@ def fft_svg_explained(tree, palette=None, node_explanations=None,
                 f'<rect x="{mini_x}" y="{true_cy - mini_h / 2}" rx="8" width="{mini_w}" '
                 f'height="{mini_h}" fill="none" stroke="{tf}" '
                 f'stroke-width="{2.2 if r_true_hit else 1.3}"/>'
-                f'<text x="{mini_x + mini_w / 2}" y="{true_cy + 4}" font-size="12" '
+                f'<text x="{mini_x + mini_w / 2}" y="{true_cy + 4}" font-size="13.5" '
                 f'text-anchor="middle" fill="{tf}" font-weight="700">'
-                f'{leaf_text(refine["true_class"])}</text></g>'
+                f'{_refine_branch_label(refine, True)}</text></g>'
             )
             s.append(
                 f'<line x1="{refine_x + refine_w}" y1="{ry + refine_h - 12}" x2="{mini_x - 6}" '
                 f'y2="{false_cy}" stroke="{f_col}" stroke-width="{2.2 if r_false_hit else 1.2}" '
                 f'marker-end="url(#{"ahx2" if r_false_hit else "ah2"})"/>'
-                f'<text x="{refine_x + refine_w + 6}" y="{false_cy + 16}" font-size="10" '
+                f'<text x="{refine_x + refine_w + 6}" y="{false_cy + 16}" font-size="11.5" '
                 f'fill="{f_col}" font-weight="600">NO</text>'
                 f'<g opacity="{1.0 if (test_diffs is None or r_false_hit) else 0.45}">'
                 f'<rect x="{mini_x}" y="{false_cy - mini_h / 2}" rx="8" width="{mini_w}" '
@@ -553,9 +644,9 @@ def fft_svg_explained(tree, palette=None, node_explanations=None,
                 f'<rect x="{mini_x}" y="{false_cy - mini_h / 2}" rx="8" width="{mini_w}" '
                 f'height="{mini_h}" fill="none" stroke="{ff}" '
                 f'stroke-width="{2.2 if r_false_hit else 1.3}"/>'
-                f'<text x="{mini_x + mini_w / 2}" y="{false_cy + 4}" font-size="12" '
+                f'<text x="{mini_x + mini_w / 2}" y="{false_cy + 4}" font-size="13.5" '
                 f'text-anchor="middle" fill="{ff}" font-weight="700">'
-                f'{leaf_text(refine["false_class"])}</text></g>'
+                f'{_refine_branch_label(refine, False)}</text></g>'
             )
 
         # NO branch -> down to next node (or default leaf)
@@ -568,7 +659,7 @@ def fft_svg_explained(tree, palette=None, node_explanations=None,
             f'<line x1="{node_x + 24}" y1="{y + node_h}" x2="{node_x + 24}" y2="{no_y2 - 4}" '
             f'stroke="{no_col}" stroke-width="{2.2 if no_hl else 1.3}" opacity="{no_op}" '
             f'marker-end="url(#{no_marker})"/>'
-            f'<text x="{node_x + 32}" y="{y + node_h + 24}" font-size="11" fill="{no_col}" '
+            f'<text x="{node_x + 32}" y="{y + node_h + 24}" font-size="12.5" fill="{no_col}" '
             f'opacity="{no_op}" font-weight="600">NO</text>'
         )
 
@@ -586,8 +677,8 @@ def fft_svg_explained(tree, palette=None, node_explanations=None,
         f'height="{leaf_h}" fill="{df}" opacity="0.16"/>'
         f'<rect x="{node_x + 24 - leaf_w / 2 + 14}" y="{y + 4}" rx="10" width="{leaf_w}" '
         f'height="{leaf_h}" fill="none" stroke="{df}" stroke-width="{2.4 if d_hl else 1.4}"/>'
-        f'<text x="{node_x + 24 + 14}" y="{y + 4 + leaf_h / 2 + 5}" font-size="13" '
-        f'text-anchor="middle" fill="{df}" font-weight="700">Default · {leaf_text(dcls)}</text>'
+        f'<text x="{node_x + 24 + 14}" y="{y + 4 + leaf_h / 2 + 5}" font-size="14" '
+        f'text-anchor="middle" fill="{df}" font-weight="700">Default · {"Prefer A" if dcls == 1 else "Prefer B"}</text>'
         f'</g>'
     )
 

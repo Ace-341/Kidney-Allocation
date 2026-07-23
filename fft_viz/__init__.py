@@ -25,17 +25,20 @@ def fft_viz(
     tree: dict,
     editing: bool = False,
     params: list[str] | None = None,
+    labels: dict | None = None,
     key: str | None = None,
 ) -> dict | None:
     """
     Render the FFT decision tree.
 
     Returns the edited tree dict when the user clicks Apply, otherwise None.
+    `labels` is a dict mapping param base name → (higher_label, lower_label).
     """
     return _component_func(
         tree=tree,
         editing=editing,
         params=params or [],
+        labels=labels or {},
         key=key,
         default=None,
     )
